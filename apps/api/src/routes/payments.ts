@@ -21,6 +21,7 @@ paymentsRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { flightId, seatNo } = req.body as z.infer<typeof orderSchema>;
+      const userId = req.user!.id;
 
       const flight = await prisma.flight.findUnique({ where: { id: flightId } });
       if (!flight) {
@@ -37,15 +38,33 @@ paymentsRouter.post(
         throw new HttpError(409, "Seat is not available");
       }
 
+      // fare is in RUPEES (server-computed from flight.baseFare).
       const fare = Number(flight.baseFare);
-      const amount = Math.round(fare * 100); // convert rupees to paise
+      // amount in PAISE for the payment provider (Razorpay requires paise;
+      // mock provider mirrors this for consistency — m4).
+      const amountPaise = Math.round(fare * 100);
 
       const provider = getPaymentProvider();
       const receipt = `rcpt_${flightId.slice(0, 8)}_${seatNo}`;
-      const order = await provider.createOrder(amount, "INR", receipt);
+      // Provider receives PAISE; both Razorpay and mock return paise in order.amount.
+      const order = await provider.createOrder(amountPaise, "INR", receipt);
+
+      // I2: bind this order to flight+seat+amount+user so the booking route
+      // can trust the server-computed amount instead of a client-supplied value.
+      // PaymentOrder.amount stored in RUPEES (same unit as Payment.amount).
+      await prisma.paymentOrder.create({
+        data: {
+          orderId: order.orderId,
+          flightId,
+          seatNo,
+          amount: fare, // RUPEES
+          userId,
+        },
+      });
 
       res.json({
         orderId: order.orderId,
+        // amount returned in PAISE so the frontend can display "₹{amount/100}".
         amount: order.amount,
         currency: order.currency,
         keyId: order.keyId ?? null,

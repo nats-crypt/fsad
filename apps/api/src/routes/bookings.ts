@@ -7,12 +7,31 @@ import { HttpError } from "../lib/http-error.js";
 import { getPaymentProvider } from "../payments/provider.js";
 import { genPnr } from "../lib/pnr.js";
 import { renderTicketPdf } from "../lib/ticket-pdf.js";
-import { putObject, presignGet } from "../lib/storage.js";
+import { putObject, presignGet, ticketKey } from "../lib/storage.js";
 
 export const bookingsRouter = Router();
 
 // All bookings routes require authentication
 bookingsRouter.use(requireAuth);
+
+// m2: tightened payment schema — discriminated union instead of z.record(z.unknown()).
+const razorpayPaymentSchema = z.object({
+  razorpay_order_id: z.string(),
+  razorpay_payment_id: z.string(),
+  razorpay_signature: z.string(),
+});
+
+const mockPaymentSchema = z.object({
+  orderId: z.string(),
+  card: z.object({
+    number: z.string(),
+    expiry: z.string(),
+    cvv: z.string(),
+  }),
+});
+
+// Union of the two valid payment shapes (razorpay proof | mock card+order).
+const paymentSchema = z.union([razorpayPaymentSchema, mockPaymentSchema]);
 
 const createBookingSchema = z.object({
   flightId: z.string().min(1),
@@ -22,7 +41,7 @@ const createBookingSchema = z.object({
     phone: z.string().optional(),
     preferences: z.record(z.unknown()).optional(),
   }),
-  payment: z.record(z.unknown()),
+  payment: paymentSchema,
 });
 
 /** POST /api/bookings — create booking with payment */
@@ -56,6 +75,32 @@ bookingsRouter.post(
         throw new HttpError(404, "Seat not found");
       }
 
+      // I2: resolve the orderId from whichever payment shape was submitted.
+      const submittedOrderId =
+        "razorpay_order_id" in payment
+          ? payment.razorpay_order_id
+          : payment.orderId;
+
+      // I2: look up the PaymentOrder created by POST /api/payments/order.
+      // This binds the booking to a server-computed amount and prevents
+      // clients from tampering with fare, seat, or flight.
+      const paymentOrder = await prisma.paymentOrder.findUnique({
+        where: { orderId: submittedOrderId },
+      });
+
+      if (!paymentOrder) {
+        throw new HttpError(402, "Payment order not found — call POST /api/payments/order first");
+      }
+      if (paymentOrder.userId !== userId) {
+        throw new HttpError(402, "Payment order does not belong to this user");
+      }
+      if (paymentOrder.flightId !== flightId || paymentOrder.seatNo !== seatNo) {
+        throw new HttpError(402, "Payment order flight/seat mismatch");
+      }
+      if (paymentOrder.used) {
+        throw new HttpError(402, "Payment order has already been used");
+      }
+
       // Step 1: Verify payment BEFORE the seat transaction
       const provider = getPaymentProvider();
       const verifyResult = await provider.verify(payment as Parameters<typeof provider.verify>[0]);
@@ -63,25 +108,28 @@ bookingsRouter.post(
         throw new HttpError(402, verifyResult.reason ?? "Payment failed");
       }
 
-      // Step 2: Atomic transaction — lock seat, create booking, payment, ticket
-      const fare = Number(flight.baseFare);
+      // Step 2: Atomic transaction — lock seat (C1), mark order used, create booking+payment+ticket
+      // Amount comes from the server-trusted PaymentOrder (in RUPEES) — not from the client.
+      const fare = Number(paymentOrder.amount);
 
       let pnr: string;
       let bookingId: string;
 
       const result = await prisma.$transaction(async (tx) => {
-        // Lock the seat — check it's still AVAILABLE
-        const lockedSeat = await tx.seat.findUnique({
-          where: { id: seat.id },
+        // C1: Atomic seat lock — updateMany with status filter prevents TOCTOU race.
+        // If count===0 the seat was already BOOKED by a concurrent request.
+        const updated = await tx.seat.updateMany({
+          where: { id: seat.id, status: "AVAILABLE" },
+          data: { status: "BOOKED" },
         });
-        if (!lockedSeat || lockedSeat.status !== "AVAILABLE") {
+        if (updated.count === 0) {
           throw new HttpError(409, "Seat is no longer available");
         }
 
-        // Mark seat as BOOKED
-        await tx.seat.update({
-          where: { id: seat.id },
-          data: { status: "BOOKED" },
+        // I2: mark the PaymentOrder as consumed so it cannot be reused.
+        await tx.paymentOrder.update({
+          where: { orderId: submittedOrderId },
+          data: { used: true },
         });
 
         // Generate a unique PNR
@@ -109,14 +157,14 @@ bookingsRouter.post(
         });
         bookingId = booking.id;
 
-        // Create payment record
+        // Create payment record — amount in RUPEES (Payment.amount is rupees, NOT paise).
         const paymentRecord = await tx.payment.create({
           data: {
             bookingId: booking.id,
-            orderId: (payment.orderId as string | undefined) ?? (payment.razorpay_order_id as string | undefined) ?? null,
+            orderId: submittedOrderId,
             paymentId: verifyResult.paymentId ?? null,
             cardLast4: verifyResult.last4 ?? null,
-            amount: fare,
+            amount: fare, // RUPEES
             status: "PAID",
             method: verifyResult.method ?? "CARD",
           },
@@ -164,7 +212,7 @@ bookingsRouter.post(
           farePaid: fare,
         });
 
-        const pdfKey = `tickets/${result.booking.pnr}.pdf`;
+        const pdfKey = ticketKey(result.booking.pnr);
         const uploadedKey = await putObject(pdfKey, pdfBuffer, "application/pdf");
 
         if (uploadedKey) {
@@ -207,11 +255,18 @@ bookingsRouter.get(
         return res.json([]);
       }
 
+      // #4: include nested flight origin/destination{code,city}, departAt/arriveAt,
+      // and seat{seatNo,cabinClass} for frontend integration.
       const bookings = await prisma.booking.findMany({
         where: { passengerId: passenger.id },
         include: {
-          flight: { include: { origin: true, destination: true } },
-          seat: true,
+          flight: {
+            include: {
+              origin: { select: { code: true, city: true, name: true } },
+              destination: { select: { code: true, city: true, name: true } },
+            },
+          },
+          seat: { select: { id: true, seatNo: true, cabinClass: true, status: true } },
           payment: true,
           ticket: true,
         },

@@ -121,6 +121,14 @@ flightsRouter.get(
 
 // ─── Seat generation helper ─────────────────────────────────────────────────
 
+/**
+ * Generates seat records for a flight.
+ * Row 1       → FIRST (premium rows at the front)
+ * Rows 2–3    → BUSINESS
+ * Rows 4+     → ECONOMY
+ * #1: assigns FIRST|BUSINESS|ECONOMY cabin classes so GET /api/flights/:id
+ * returns all three classes for frontend cabin-class filtering.
+ */
 function buildSeatData(
   flightId: string,
   capacity: number
@@ -131,7 +139,7 @@ function buildSeatData(
 
   let count = 0;
   for (let row = 1; row <= totalRows && count < capacity; row++) {
-    const cabinClass = row <= 2 ? "BUSINESS" : "ECONOMY";
+    const cabinClass = row === 1 ? "FIRST" : row <= 3 ? "BUSINESS" : "ECONOMY";
     for (const col of columns) {
       if (count >= capacity) break;
       seats.push({ flightId, seatNo: `${row}${col}`, cabinClass, status: "AVAILABLE" });
@@ -144,19 +152,70 @@ function buildSeatData(
 
 // ─── Admin writes ────────────────────────────────────────────────────────────
 
-const createFlightSchema = z.object({
-  flightNo: z.string().min(1),
-  originId: z.string().min(1),
-  destinationId: z.string().min(1),
-  aircraftId: z.string().min(1),
-  departAt: z.string().datetime(),
-  arriveAt: z.string().datetime(),
-  baseFare: z.union([z.string(), z.number()]).transform((v) => Number(v)),
-  capacity: z.coerce.number().int().positive(),
-  status: z.enum(["SCHEDULED", "DEPARTED", "ARRIVED", "CANCELLED"]).optional().default("SCHEDULED"),
+/**
+ * #3: Admin flight-create/update accepts either airport UUIDs (originId/destinationId)
+ * or IATA codes (originCode/destinationCode). At least one of each pair is required
+ * for POST; both are optional for PUT (partial update).
+ */
+const createFlightSchema = z
+  .object({
+    flightNo: z.string().min(1),
+    originId: z.string().optional(),
+    originCode: z.string().min(2).max(5).optional(),
+    destinationId: z.string().optional(),
+    destinationCode: z.string().min(2).max(5).optional(),
+    aircraftId: z.string().min(1),
+    departAt: z.string().datetime(),
+    arriveAt: z.string().datetime(),
+    baseFare: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+    capacity: z.coerce.number().int().positive(),
+    status: z.enum(["SCHEDULED", "DEPARTED", "ARRIVED", "CANCELLED"]).optional().default("SCHEDULED"),
+  })
+  .refine((d) => d.originId || d.originCode, {
+    message: "originId or originCode is required",
+  })
+  .refine((d) => d.destinationId || d.destinationCode, {
+    message: "destinationId or destinationCode is required",
+  });
+
+const updateFlightSchema = z.object({
+  flightNo: z.string().min(1).optional(),
+  originId: z.string().optional(),
+  originCode: z.string().min(2).max(5).optional(),
+  destinationId: z.string().optional(),
+  destinationCode: z.string().min(2).max(5).optional(),
+  aircraftId: z.string().optional(),
+  departAt: z.string().datetime().optional(),
+  arriveAt: z.string().datetime().optional(),
+  baseFare: z
+    .union([z.string(), z.number()])
+    .transform((v) => Number(v))
+    .optional(),
+  capacity: z.coerce.number().int().positive().optional(),
+  status: z.enum(["SCHEDULED", "DEPARTED", "ARRIVED", "CANCELLED"]).optional(),
 });
 
-const updateFlightSchema = createFlightSchema.partial();
+/**
+ * Resolves an airport by id or IATA code. Returns the airport id.
+ * Throws HttpError 404 if the airport cannot be found.
+ */
+async function resolveAirportId(
+  id: string | undefined,
+  code: string | undefined,
+  label: string
+): Promise<string | undefined> {
+  if (id) return id;
+  if (code) {
+    const airport = await prisma.airport.findUnique({
+      where: { code: code.toUpperCase() },
+    });
+    if (!airport) {
+      throw new HttpError(404, `Airport with IATA code '${code.toUpperCase()}' not found (${label})`);
+    }
+    return airport.id;
+  }
+  return undefined;
+}
 
 /** POST /api/flights — admin creates a flight and generates seats */
 flightsRouter.post(
@@ -166,8 +225,15 @@ flightsRouter.post(
   validate(createFlightSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { flightNo, originId, destinationId, aircraftId, departAt, arriveAt, baseFare, capacity, status } =
-        req.body as z.infer<typeof createFlightSchema>;
+      const body = req.body as z.infer<typeof createFlightSchema>;
+      const { flightNo, aircraftId, departAt, arriveAt, baseFare, capacity, status } = body;
+
+      // #3: resolve originId/destinationId from code if only code was supplied
+      const originId = await resolveAirportId(body.originId, body.originCode, "origin");
+      const destinationId = await resolveAirportId(body.destinationId, body.destinationCode, "destination");
+
+      if (!originId) throw new HttpError(400, "originId or originCode is required");
+      if (!destinationId) throw new HttpError(400, "destinationId or destinationCode is required");
 
       const flight = await prisma.flight.create({
         data: {
@@ -183,7 +249,7 @@ flightsRouter.post(
         },
       });
 
-      // Generate seat records
+      // Generate seat records with FIRST/BUSINESS/ECONOMY cabin classes
       const seatData = buildSeatData(flight.id, capacity);
       await prisma.seat.createMany({ data: seatData });
 
@@ -220,7 +286,16 @@ flightsRouter.put(
       }
 
       const body = req.body as z.infer<typeof updateFlightSchema>;
-      const data: Record<string, unknown> = { ...body };
+
+      // #3: resolve airport codes if provided
+      const originId = await resolveAirportId(body.originId, body.originCode, "origin");
+      const destinationId = await resolveAirportId(body.destinationId, body.destinationCode, "destination");
+
+      // Build the update payload — omit code fields; replace with resolved ids
+      const { originId: _oId, originCode: _oCode, destinationId: _dId, destinationCode: _dCode, ...rest } = body;
+      const data: Record<string, unknown> = { ...rest };
+      if (originId) data.originId = originId;
+      if (destinationId) data.destinationId = destinationId;
       if (body.departAt) data.departAt = new Date(body.departAt);
       if (body.arriveAt) data.arriveAt = new Date(body.arriveAt);
 
@@ -271,6 +346,7 @@ flightsRouter.delete(
         await prisma.payment.deleteMany({ where: { bookingId: { in: bookingIds } } });
         await prisma.booking.deleteMany({ where: { id: { in: bookingIds } } });
       }
+      await prisma.paymentOrder.deleteMany({ where: { flightId: id } });
       await prisma.seat.deleteMany({ where: { flightId: id } });
       await prisma.crewAssignment.deleteMany({ where: { flightId: id } });
       await prisma.flight.delete({ where: { id } });
