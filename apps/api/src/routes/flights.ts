@@ -255,12 +255,16 @@ flightsRouter.delete(
   requireRole("ADMIN"),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const existing = await prisma.flight.findUnique({ where: { id: req.params.id } });
+      const id = req.params.id;
+      const existing = await prisma.flight.findUnique({ where: { id } });
       if (!existing) {
         throw new HttpError(404, "Flight not found");
       }
 
-      await prisma.flight.delete({ where: { id: req.params.id } });
+      // Delete dependent records before deleting the flight (FK constraints)
+      await prisma.seat.deleteMany({ where: { flightId: id } });
+      await prisma.crewAssignment.deleteMany({ where: { flightId: id } });
+      await prisma.flight.delete({ where: { id } });
       res.status(204).send();
     } catch (err) {
       next(err);

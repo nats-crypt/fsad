@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@horizon/db";
 import { HttpError } from "../lib/http-error.js";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -34,12 +35,13 @@ crewRouter.post(
       res.status(201).json(assignment);
     } catch (err: unknown) {
       // Prisma unique constraint violation → 409
-      if (
-        err instanceof Object &&
-        "code" in err &&
-        (err as { code: string }).code === "P2002"
-      ) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         next(new HttpError(409, "Employee is already assigned to this flight"));
+        return;
+      }
+      // Prisma FK not found → 422
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+        next(new HttpError(422, "Invalid flightId or employeeId"));
         return;
       }
       next(err);
