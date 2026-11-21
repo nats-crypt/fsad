@@ -7,6 +7,8 @@ import { authRouter } from "./routes/auth.js";
 import { flightsRouter } from "./routes/flights.js";
 import { paymentsRouter } from "./routes/payments.js";
 import { bookingsRouter } from "./routes/bookings.js";
+import { aircraftRouter } from "./routes/aircraft.js";
+import { employeesRouter } from "./routes/employees.js";
 
 export function createApp() {
   const app = express();
@@ -30,6 +32,8 @@ export function createApp() {
   app.use("/api/flights", flightsRouter);
   app.use("/api/payments", paymentsRouter);
   app.use("/api/bookings", bookingsRouter);
+  app.use("/api/aircraft", aircraftRouter);
+  app.use("/api/employees", employeesRouter);
 
   // Central error middleware (must be last, 4-arg signature)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
