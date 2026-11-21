@@ -13,6 +13,14 @@ function getS3Client(): S3Client {
 }
 
 /**
+ * Returns the S3 object key for a ticket PDF given a PNR.
+ * Exported so tests can assert the correct key without duplicating the pattern.
+ */
+export function ticketKey(pnr: string): string {
+  return `tickets/${pnr}.pdf`;
+}
+
+/**
  * Ensures the S3 bucket exists. No-op if S3 is not configured.
  */
 export async function ensureBucket(): Promise<void> {

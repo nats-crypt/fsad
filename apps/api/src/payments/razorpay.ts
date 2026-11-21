@@ -32,12 +32,20 @@ export const razorpayProvider: PaymentProvider = {
     }
 
     // HMAC-SHA256(order_id | payment_id, KEY_SECRET) — never log KEY_SECRET
-    const { createHmac } = await import("crypto");
+    const { createHmac, timingSafeEqual } = await import("crypto");
     const expected = createHmac("sha256", KEY_SECRET())
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    if (expected !== razorpay_signature) {
+    // I1: constant-time comparison to prevent timing attacks.
+    // Guard on length first so Buffer.byteLength is equal before the safe compare.
+    const expectedBuf = Buffer.from(expected, "hex");
+    const sigBuf = Buffer.from(razorpay_signature, "hex");
+    const ok =
+      expectedBuf.length === sigBuf.length &&
+      timingSafeEqual(expectedBuf, sigBuf);
+
+    if (!ok) {
       return { ok: false, reason: "Signature mismatch" };
     }
 

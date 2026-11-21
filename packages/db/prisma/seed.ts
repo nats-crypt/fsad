@@ -83,13 +83,14 @@ const EMPLOYEE_DATA = [
 ];
 
 // Generate seat numbers: rows 1-N (based on capacity ÷ 6), cols A-F
+// Row 1 → FIRST, rows 2–3 → BUSINESS, rows 4+ → ECONOMY (#1 cabinClass integration)
 function generateSeatNos(capacity: number): Array<{ seatNo: string; cabinClass: string }> {
   const cols = ["A", "B", "C", "D", "E", "F"] as const;
   const rows = Math.ceil(capacity / 6);
   const seats: Array<{ seatNo: string; cabinClass: string }> = [];
   for (let r = 1; r <= rows; r++) {
+    const cabinClass = r === 1 ? "FIRST" : r <= 3 ? "BUSINESS" : "ECONOMY";
     for (const col of cols) {
-      const cabinClass = r <= Math.ceil(rows * 0.15) ? "BUSINESS" : "ECONOMY";
       seats.push({ seatNo: `${r}${col}`, cabinClass });
     }
   }

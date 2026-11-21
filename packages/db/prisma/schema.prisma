@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  role         Role       @default(PASSENGER)
-  createdAt    DateTime   @default(now())
-  employee     Employee?
-  passenger    Passenger?
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  role          Role           @default(PASSENGER)
+  createdAt     DateTime       @default(now())
+  employee      Employee?
+  passenger     Passenger?
+  paymentOrders PaymentOrder[]
 }
 
 model Passenger {
@@ -79,6 +80,7 @@ model Flight {
   destination   Airport          @relation("destination", fields: [destinationId], references: [id])
   origin        Airport          @relation("origin", fields: [originId], references: [id])
   seats         Seat[]
+  paymentOrders PaymentOrder[]
 }
 
 model Seat {
@@ -140,6 +142,23 @@ model Ticket {
   issuedAt  DateTime @default(now())
   pdfKey    String?
   booking   Booking  @relation(fields: [bookingId], references: [id])
+}
+
+/// Binds a payment-provider order to a specific flight+seat+amount+user.
+/// Created when POST /api/payments/order is called; marked used=true when
+/// POST /api/bookings consumes it. Prevents amount-tampering attacks.
+model PaymentOrder {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  flightId  String
+  seatNo    String
+  /// Amount in rupees (server-computed from flight.baseFare).
+  amount    Decimal
+  userId    String
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  flight    Flight   @relation(fields: [flightId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Attendance {
