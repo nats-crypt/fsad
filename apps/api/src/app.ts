@@ -12,6 +12,7 @@ import { employeesRouter } from "./routes/employees.js";
 import { crewRouter } from "./routes/crew.js";
 import { attendanceRouter } from "./routes/attendance.js";
 import { dutyRouter } from "./routes/duty.js";
+import { reportsRouter } from "./routes/reports.js";
 
 export function createApp() {
   const app = express();
@@ -40,6 +41,7 @@ export function createApp() {
   app.use("/api/crew", crewRouter);
   app.use("/api/attendance", attendanceRouter);
   app.use("/api/duty", dutyRouter);
+  app.use("/api/reports", reportsRouter);
 
   // Central error middleware (must be last, 4-arg signature)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
