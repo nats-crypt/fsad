@@ -1,10 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(PASSENGER)
+  createdAt    DateTime   @default(now())
+  employee     Employee?
+  passenger    Passenger?
+}
+
+model Passenger {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  fullName    String
+  phone       String?
+  preferences Json?
+  bookings    Booking[]
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Employee {
+  id          String           @id @default(cuid())
+  userId      String?          @unique
+  empCode     String           @unique
+  fullName    String
+  designation String
+  dutyArea    String?
+  salary      Decimal          @default(0)
+  contact     String?
+  attendance  Attendance[]
+  crew        CrewAssignment[]
+  dutyReports DutyReport[]
+  user        User?            @relation(fields: [userId], references: [id])
+}
+
+model Airport {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  city       String
+  country    String
+  arrivals   Flight[] @relation("destination")
+  departures Flight[] @relation("origin")
+}
+
+model Aircraft {
+  id           String   @id @default(cuid())
+  registration String   @unique
+  model        String
+  capacity     Int
+  status       String   @default("ACTIVE")
+  flights      Flight[]
+}
+
+model Flight {
+  id            String           @id @default(cuid())
+  flightNo      String
+  originId      String
+  destinationId String
+  aircraftId    String
+  departAt      DateTime
+  arriveAt      DateTime
+  baseFare      Decimal
+  capacity      Int
+  seatsBooked   Int              @default(0)
+  status        FlightStatus     @default(SCHEDULED)
+  bookings      Booking[]
+  crew          CrewAssignment[]
+  aircraft      Aircraft         @relation(fields: [aircraftId], references: [id])
+  destination   Airport          @relation("destination", fields: [destinationId], references: [id])
+  origin        Airport          @relation("origin", fields: [originId], references: [id])
+  seats         Seat[]
+}
+
+model Seat {
+  id         String     @id @default(cuid())
+  flightId   String
+  seatNo     String
+  cabinClass String     @default("ECONOMY")
+  status     SeatStatus @default(AVAILABLE)
+  booking    Booking?
+  flight     Flight     @relation(fields: [flightId], references: [id])
+
+  @@unique([flightId, seatNo])
+}
+
+model CrewAssignment {
+  id         String   @id @default(cuid())
+  flightId   String
+  employeeId String
+  role       String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  flight     Flight   @relation(fields: [flightId], references: [id])
+
+  @@unique([flightId, employeeId])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  pnr         String        @unique
+  passengerId String
+  flightId    String
+  seatId      String        @unique
+  farePaid    Decimal
+  status      BookingStatus @default(CONFIRMED)
+  createdAt   DateTime      @default(now())
+  cancelledAt DateTime?
+  flight      Flight        @relation(fields: [flightId], references: [id])
+  passenger   Passenger     @relation(fields: [passengerId], references: [id])
+  seat        Seat          @relation(fields: [seatId], references: [id])
+  payment     Payment?
+  ticket      Ticket?
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  orderId   String?
+  paymentId String?
+  cardLast4 String?
+  amount    Decimal
+  status    String   @default("PAID")
+  method    String   @default("CARD")
+  createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+}
+
+model Ticket {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  issuedAt  DateTime @default(now())
+  pdfKey    String?
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+}
+
+model Attendance {
+  id         String    @id @default(cuid())
+  employeeId String
+  date       DateTime
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     String    @default("PRESENT")
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, date])
+}
+
+model DutyReport {
+  id         String    @id @default(cuid())
+  employeeId String
+  dutyArea   String
+  startAt    DateTime
+  endAt      DateTime?
+  employee   Employee  @relation(fields: [employeeId], references: [id])
 }
 
 enum Role {
@@ -29,154 +185,4 @@ enum FlightStatus {
   DEPARTED
   ARRIVED
   CANCELLED
-}
-
-model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  role         Role      @default(PASSENGER)
-  createdAt    DateTime  @default(now())
-  passenger    Passenger?
-  employee     Employee?
-}
-
-model Passenger {
-  id          String    @id @default(cuid())
-  userId      String    @unique
-  user        User      @relation(fields: [userId], references: [id])
-  fullName    String
-  phone       String?
-  preferences Json?
-  bookings    Booking[]
-}
-
-model Employee {
-  id          String            @id @default(cuid())
-  userId      String?           @unique
-  user        User?             @relation(fields: [userId], references: [id])
-  empCode     String            @unique
-  fullName    String
-  designation String
-  dutyArea    String?
-  salary      Decimal           @default(0)
-  contact     String?
-  attendance  Attendance[]
-  dutyReports DutyReport[]
-  crew        CrewAssignment[]
-}
-
-model Airport {
-  id         String   @id @default(cuid())
-  code       String   @unique
-  name       String
-  city       String
-  country    String
-  departures Flight[] @relation("origin")
-  arrivals   Flight[] @relation("destination")
-}
-
-model Aircraft {
-  id           String   @id @default(cuid())
-  registration String   @unique
-  model        String
-  capacity     Int
-  status       String   @default("ACTIVE")
-  flights      Flight[]
-}
-
-model Flight {
-  id            String           @id @default(cuid())
-  flightNo      String
-  originId      String
-  origin        Airport          @relation("origin", fields: [originId], references: [id])
-  destinationId String
-  destination   Airport          @relation("destination", fields: [destinationId], references: [id])
-  aircraftId    String
-  aircraft      Aircraft         @relation(fields: [aircraftId], references: [id])
-  departAt      DateTime
-  arriveAt      DateTime
-  baseFare      Decimal
-  capacity      Int
-  seatsBooked   Int              @default(0)
-  status        FlightStatus     @default(SCHEDULED)
-  seats         Seat[]
-  bookings      Booking[]
-  crew          CrewAssignment[]
-}
-
-model Seat {
-  id         String    @id @default(cuid())
-  flightId   String
-  flight     Flight    @relation(fields: [flightId], references: [id])
-  seatNo     String
-  cabinClass String    @default("ECONOMY")
-  status     SeatStatus @default(AVAILABLE)
-  booking    Booking?
-  @@unique([flightId, seatNo])
-}
-
-model CrewAssignment {
-  id         String   @id @default(cuid())
-  flightId   String
-  flight     Flight   @relation(fields: [flightId], references: [id])
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  role       String
-  @@unique([flightId, employeeId])
-}
-
-model Booking {
-  id          String        @id @default(cuid())
-  pnr         String        @unique
-  passengerId String
-  passenger   Passenger     @relation(fields: [passengerId], references: [id])
-  flightId    String
-  flight      Flight        @relation(fields: [flightId], references: [id])
-  seatId      String        @unique
-  seat        Seat          @relation(fields: [seatId], references: [id])
-  farePaid    Decimal
-  status      BookingStatus @default(CONFIRMED)
-  createdAt   DateTime      @default(now())
-  cancelledAt DateTime?
-  payment     Payment?
-  ticket      Ticket?
-}
-
-model Payment {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  booking   Booking  @relation(fields: [bookingId], references: [id])
-  cardLast4 String
-  amount    Decimal
-  status    String   @default("PAID")
-  method    String   @default("CARD")
-  createdAt DateTime @default(now())
-}
-
-model Ticket {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  booking   Booking  @relation(fields: [bookingId], references: [id])
-  issuedAt  DateTime @default(now())
-}
-
-model Attendance {
-  id         String    @id @default(cuid())
-  employeeId String
-  employee   Employee  @relation(fields: [employeeId], references: [id])
-  date       DateTime
-  checkIn    DateTime?
-  checkOut   DateTime?
-  status     String    @default("PRESENT")
-  @@unique([employeeId, date])
-}
-
-model DutyReport {
-  id         String    @id @default(cuid())
-  employeeId String
-  employee   Employee  @relation(fields: [employeeId], references: [id])
-  dutyArea   String
-  startAt    DateTime
-  endAt      DateTime?
 }
