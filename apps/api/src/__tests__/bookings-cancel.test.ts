@@ -18,6 +18,7 @@ async function createTestBooking(token: string): Promise<{
   flightId: string;
   seatId: string;
   seatNo: string;
+  orderId: string;
 }> {
   const flight = await prisma.flight.findFirstOrThrow({
     where: {
@@ -31,6 +32,17 @@ async function createTestBooking(token: string): Promise<{
     where: { flightId: flight.id, status: "AVAILABLE" },
   });
 
+  // I2: create a PaymentOrder via the payments/order endpoint before booking
+  const orderRes = await request(app)
+    .post("/api/payments/order")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ flightId: flight.id, seatNo: seat.seatNo });
+
+  if (orderRes.status !== 200) {
+    throw new Error(`Failed to create payment order: ${orderRes.status} ${JSON.stringify(orderRes.body)}`);
+  }
+  const orderId: string = orderRes.body.orderId;
+
   const res = await request(app)
     .post("/api/bookings")
     .set("Authorization", `Bearer ${token}`)
@@ -39,7 +51,7 @@ async function createTestBooking(token: string): Promise<{
       seatNo: seat.seatNo,
       passenger: { fullName: "Demo Passenger", phone: "+91-9000000000" },
       payment: {
-        orderId: `order_mock_cancel_${Date.now()}`,
+        orderId,
         card: { number: "4539148803436467", expiry: "12/30", cvv: "123" },
       },
     });
@@ -48,10 +60,10 @@ async function createTestBooking(token: string): Promise<{
     throw new Error(`Failed to create test booking: ${res.status} ${JSON.stringify(res.body)}`);
   }
 
-  return { pnr: res.body.pnr, id: res.body.id, flightId: flight.id, seatId: seat.id, seatNo: seat.seatNo };
+  return { pnr: res.body.pnr, id: res.body.id, flightId: flight.id, seatId: seat.id, seatNo: seat.seatNo, orderId };
 }
 
-async function cleanupBooking(bookingId: string, flightId: string, seatId: string) {
+async function cleanupBooking(bookingId: string, flightId: string, seatId: string, orderId?: string) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: { payment: true, ticket: true },
@@ -66,12 +78,15 @@ async function cleanupBooking(bookingId: string, flightId: string, seatId: strin
     });
     await prisma.seat.update({ where: { id: seatId }, data: { status: "AVAILABLE" } });
   }
+  if (orderId) {
+    await prisma.paymentOrder.deleteMany({ where: { orderId } });
+  }
 }
 
 describe("POST /api/bookings/:id/cancel", () => {
   it("cancels a confirmed booking and releases the seat", async () => {
     const token = await getDemoToken();
-    const { id, flightId, seatId } = await createTestBooking(token);
+    const { id, flightId, seatId, orderId } = await createTestBooking(token);
 
     const res = await request(app)
       .post(`/api/bookings/${id}/cancel`)
@@ -88,12 +103,12 @@ describe("POST /api/bookings/:id/cancel", () => {
     // Flight seatsBooked should be decremented
     const updatedFlight = await prisma.flight.findUnique({ where: { id: flightId } });
     // Cleanup (booking already CANCELLED but we still need to delete records)
-    await cleanupBooking(id, flightId, seatId);
+    await cleanupBooking(id, flightId, seatId, orderId);
   });
 
   it("returns 403 when another user tries to cancel", async () => {
     const token = await getDemoToken();
-    const { id, flightId, seatId } = await createTestBooking(token);
+    const { id, flightId, seatId, orderId } = await createTestBooking(token);
 
     // Create a different user (attacker)
     const attackerEmail = `attacker+${Date.now()}@horizon.test`;
@@ -109,7 +124,7 @@ describe("POST /api/bookings/:id/cancel", () => {
     expect(res.status).toBe(403);
 
     // Cleanup - cancel the booking first then clean up
-    await cleanupBooking(id, flightId, seatId);
+    await cleanupBooking(id, flightId, seatId, orderId);
     await prisma.passenger.deleteMany({ where: { user: { email: attackerEmail } } });
     await prisma.user.deleteMany({ where: { email: attackerEmail } });
   });
@@ -118,7 +133,7 @@ describe("POST /api/bookings/:id/cancel", () => {
 describe("GET /api/bookings/mine", () => {
   it("returns the authenticated passenger's bookings", async () => {
     const token = await getDemoToken();
-    const { id, flightId, seatId } = await createTestBooking(token);
+    const { id, flightId, seatId, orderId } = await createTestBooking(token);
 
     const res = await request(app)
       .get("/api/bookings/mine")
@@ -130,15 +145,26 @@ describe("GET /api/bookings/mine", () => {
     const found = res.body.find((b: { id: string }) => b.id === id);
     expect(found).toBeDefined();
 
+    // #4: verify nested includes — flight.origin/destination with code+city, seat with seatNo+cabinClass
+    expect(found.flight).toBeDefined();
+    expect(found.flight.origin).toHaveProperty("code");
+    expect(found.flight.origin).toHaveProperty("city");
+    expect(found.flight.destination).toHaveProperty("code");
+    expect(found.flight.destination).toHaveProperty("city");
+    expect(found.flight).toHaveProperty("departAt");
+    expect(found.flight).toHaveProperty("arriveAt");
+    expect(found.seat).toHaveProperty("seatNo");
+    expect(found.seat).toHaveProperty("cabinClass");
+
     // Cleanup
-    await cleanupBooking(id, flightId, seatId);
+    await cleanupBooking(id, flightId, seatId, orderId);
   });
 });
 
 describe("GET /api/bookings/:id/ticket", () => {
   it("returns ticket payload for confirmed booking", async () => {
     const token = await getDemoToken();
-    const { id, flightId, seatId } = await createTestBooking(token);
+    const { id, flightId, seatId, orderId } = await createTestBooking(token);
 
     const res = await request(app)
       .get(`/api/bookings/${id}/ticket`)
@@ -150,6 +176,6 @@ describe("GET /api/bookings/:id/ticket", () => {
     expect("pdfUrl" in res.body).toBe(true);
 
     // Cleanup
-    await cleanupBooking(id, flightId, seatId);
+    await cleanupBooking(id, flightId, seatId, orderId);
   });
 });

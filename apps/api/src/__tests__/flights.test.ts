@@ -11,24 +11,33 @@ function getTomorrowDate(): string {
 }
 
 describe("GET /api/flights", () => {
-  it("returns flights for a known route and date", async () => {
-    // The seed creates DEL→BOM (HA101) starting day+1
-    const date = getTomorrowDate();
+  it("returns flights for a known route and date (m1: unconditional assertions)", async () => {
+    // m1: query a date the seed guarantees has a DEL→BOM flight, not "tomorrow"
+    // which may or may not coincide with the seed window.
+    const flight = await prisma.flight.findFirstOrThrow({
+      where: {
+        origin: { code: "DEL" },
+        destination: { code: "BOM" },
+        status: "SCHEDULED",
+      },
+      orderBy: { departAt: "asc" },
+    });
+    // Use the UTC date of the first scheduled departure (matches the search range).
+    const date = flight.departAt.toISOString().slice(0, 10);
+
     const res = await request(app)
       .get("/api/flights")
       .query({ origin: "DEL", destination: "BOM", date });
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    // There may be 0 or 1 flights depending on seed day offset;
-    // we just check response shape and valid array response
-    if (res.body.length > 0) {
-      expect(res.body[0]).toHaveProperty("id");
-      expect(res.body[0]).toHaveProperty("flightNo");
-      expect(res.body[0]).toHaveProperty("seatsLeft");
-      expect(res.body[0].origin.code).toBe("DEL");
-      expect(res.body[0].destination.code).toBe("BOM");
-    }
+    // Seed guarantees at least one flight on this date — assertions are unconditional.
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0]).toHaveProperty("id");
+    expect(res.body[0]).toHaveProperty("flightNo");
+    expect(res.body[0]).toHaveProperty("seatsLeft");
+    expect(res.body[0].origin.code).toBe("DEL");
+    expect(res.body[0].destination.code).toBe("BOM");
   });
 
   it("returns empty array for unknown route", async () => {
@@ -64,7 +73,7 @@ describe("GET /api/flights", () => {
 });
 
 describe("GET /api/flights/:id", () => {
-  it("returns a flight with seat map", async () => {
+  it("returns a flight with seat map including cabinClass", async () => {
     // Find the first DEL→BOM flight in the DB
     const flight = await prisma.flight.findFirst({
       where: {
@@ -81,6 +90,8 @@ describe("GET /api/flights/:id", () => {
     expect(res.body.seats).toBeDefined();
     expect(Array.isArray(res.body.seats)).toBe(true);
     expect(res.body.seats.length).toBeGreaterThan(0);
+    // Each seat must have cabinClass
+    expect(res.body.seats[0]).toHaveProperty("cabinClass");
   });
 
   it("returns 404 for unknown flight id", async () => {
