@@ -2,6 +2,8 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { z } from "zod";
 import { prisma } from "@horizon/db";
 import { HttpError } from "../lib/http-error.js";
+import { requireAuth, requireRole } from "../lib/auth.js";
+import { validate } from "../lib/validate.js";
 
 export const flightsRouter = Router();
 
@@ -111,6 +113,155 @@ flightsRouter.get(
           status: s.status,
         })),
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── Seat generation helper ─────────────────────────────────────────────────
+
+function buildSeatData(
+  flightId: string,
+  capacity: number
+): Array<{ flightId: string; seatNo: string; cabinClass: string; status: string }> {
+  const columns = ["A", "B", "C", "D", "E", "F"];
+  const totalRows = Math.ceil(capacity / 6);
+  const seats: Array<{ flightId: string; seatNo: string; cabinClass: string; status: string }> = [];
+
+  let count = 0;
+  for (let row = 1; row <= totalRows && count < capacity; row++) {
+    const cabinClass = row <= 2 ? "BUSINESS" : "ECONOMY";
+    for (const col of columns) {
+      if (count >= capacity) break;
+      seats.push({ flightId, seatNo: `${row}${col}`, cabinClass, status: "AVAILABLE" });
+      count++;
+    }
+  }
+
+  return seats;
+}
+
+// ─── Admin writes ────────────────────────────────────────────────────────────
+
+const createFlightSchema = z.object({
+  flightNo: z.string().min(1),
+  originId: z.string().min(1),
+  destinationId: z.string().min(1),
+  aircraftId: z.string().min(1),
+  departAt: z.string().datetime(),
+  arriveAt: z.string().datetime(),
+  baseFare: z.union([z.string(), z.number()]).transform((v) => Number(v)),
+  capacity: z.coerce.number().int().positive(),
+  status: z.enum(["SCHEDULED", "DEPARTED", "ARRIVED", "CANCELLED"]).optional().default("SCHEDULED"),
+});
+
+const updateFlightSchema = createFlightSchema.partial();
+
+/** POST /api/flights — admin creates a flight and generates seats */
+flightsRouter.post(
+  "/",
+  requireAuth,
+  requireRole("ADMIN"),
+  validate(createFlightSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { flightNo, originId, destinationId, aircraftId, departAt, arriveAt, baseFare, capacity, status } =
+        req.body as z.infer<typeof createFlightSchema>;
+
+      const flight = await prisma.flight.create({
+        data: {
+          flightNo,
+          originId,
+          destinationId,
+          aircraftId,
+          departAt: new Date(departAt),
+          arriveAt: new Date(arriveAt),
+          baseFare,
+          capacity,
+          status,
+        },
+      });
+
+      // Generate seat records
+      const seatData = buildSeatData(flight.id, capacity);
+      await prisma.seat.createMany({ data: seatData });
+
+      res.status(201).json({
+        id: flight.id,
+        flightNo: flight.flightNo,
+        originId: flight.originId,
+        destinationId: flight.destinationId,
+        aircraftId: flight.aircraftId,
+        departAt: flight.departAt,
+        arriveAt: flight.arriveAt,
+        baseFare: Number(flight.baseFare),
+        capacity: flight.capacity,
+        seatsBooked: flight.seatsBooked,
+        status: flight.status,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/** PUT /api/flights/:id — admin updates a flight */
+flightsRouter.put(
+  "/:id",
+  requireAuth,
+  requireRole("ADMIN"),
+  validate(updateFlightSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.flight.findUnique({ where: { id: req.params.id } });
+      if (!existing) {
+        throw new HttpError(404, "Flight not found");
+      }
+
+      const body = req.body as z.infer<typeof updateFlightSchema>;
+      const data: Record<string, unknown> = { ...body };
+      if (body.departAt) data.departAt = new Date(body.departAt);
+      if (body.arriveAt) data.arriveAt = new Date(body.arriveAt);
+
+      const flight = await prisma.flight.update({
+        where: { id: req.params.id },
+        data,
+      });
+
+      res.json({
+        id: flight.id,
+        flightNo: flight.flightNo,
+        originId: flight.originId,
+        destinationId: flight.destinationId,
+        aircraftId: flight.aircraftId,
+        departAt: flight.departAt,
+        arriveAt: flight.arriveAt,
+        baseFare: Number(flight.baseFare),
+        capacity: flight.capacity,
+        seatsBooked: flight.seatsBooked,
+        status: flight.status,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/** DELETE /api/flights/:id — admin deletes a flight */
+flightsRouter.delete(
+  "/:id",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.flight.findUnique({ where: { id: req.params.id } });
+      if (!existing) {
+        throw new HttpError(404, "Flight not found");
+      }
+
+      await prisma.flight.delete({ where: { id: req.params.id } });
+      res.status(204).send();
     } catch (err) {
       next(err);
     }
