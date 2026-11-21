@@ -10,7 +10,8 @@
   "scripts": {
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "demo": "tsx prisma/enrich.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
