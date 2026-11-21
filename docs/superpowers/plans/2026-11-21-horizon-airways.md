@@ -316,34 +316,39 @@ it("health returns ok", async () => {
 
 ## Phase 3 — Core Domain API
 
-### Task 3.1: Card validation + flight search
+### Task 3.1: Card validation, payment provider + flight search
 
 **Files:**
-- Create: `apps/api/src/lib/card.ts`, `apps/api/src/routes/flights.ts`, `apps/api/src/routes/payments.ts`, tests `card.test.ts`, `flights.test.ts`
+- Create: `apps/api/src/lib/card.ts`, `apps/api/src/payments/provider.ts`, `apps/api/src/payments/mock.ts`, `apps/api/src/payments/razorpay.ts`, `apps/api/src/routes/flights.ts`, `apps/api/src/routes/payments.ts`, tests `card.test.ts`, `payments.test.ts`, `flights.test.ts`
 
 **Interfaces:**
-- Produces: `validateCard({number, expiry, cvv}): {valid, last4, reason?}` (16 digits, Luhn, future expiry MM/YY, 3-digit CVV). `GET /api/flights?origin&destination&date&pax` returns flights with computed `seatsLeft`. `GET /api/flights/:id` includes seat map. `POST /api/payments/validate-card`.
+- Produces:
+  - `validateCard({number, expiry, cvv}): {valid, last4, brand?, reason?}` (16 digits, Luhn, future expiry MM/YY, 3-digit CVV; brand from BIN). Used by the mock provider and for client-side UX.
+  - Payment provider abstraction `PaymentProvider { name; createOrder(amount, currency, receipt): Promise<{orderId, amount, currency, keyId?}>; verify(payload): Promise<{ok, paymentId, method?, last4?}> }`. `getPaymentProvider()` returns `razorpayProvider` when `RAZORPAY_KEY_ID`+`RAZORPAY_KEY_SECRET` are set, else `mockProvider`.
+    - `razorpay.ts`: uses the `razorpay` npm package (or REST + basic auth) to create orders; `verify` recomputes `hmacSHA256(order_id + "|" + payment_id, KEY_SECRET)` and compares to `razorpay_signature`.
+    - `mock.ts`: `createOrder` returns a generated `order_mock_*` id; `verify` runs `validateCard` on the supplied card and returns a generated `pay_mock_*` id + last4; a card number ending in a known test value (e.g. `...0002`) simulates a decline.
+  - Routes: `POST /api/payments/order` (auth) {flightId, seatNo} → computes fare from flight.baseFare, creates an order, returns `{orderId, amount, currency, keyId, provider}`. `GET /api/flights?origin&destination&date&pax` returns flights with computed `seatsLeft`. `GET /api/flights/:id` includes seat map.
 
-- [ ] **Step 1 (test):** `card.test.ts` — `4539148803436467` valid; `1234...` invalid Luhn; 15-digit invalid length; past expiry invalid. `flights.test.ts` — search by route+date returns seeded flight; unknown route returns `[]`.
+- [ ] **Step 1 (test):** `card.test.ts` — `4539148803436467` valid; `1234...` invalid Luhn; 15-digit invalid length; past expiry invalid. `payments.test.ts` — with no Razorpay env, `getPaymentProvider()` is the mock; `createOrder` returns an order id and amount; mock `verify` accepts a valid Luhn card and rejects the decline test card. `flights.test.ts` — search by route+date returns seeded flight; unknown route returns `[]`.
 - [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement Luhn in `card.ts`; flight search query with date-range (whole day) + origin/destination code joins; seat map in `/:id`.
+- [ ] **Step 3:** Implement Luhn in `card.ts`; payment providers + `getPaymentProvider`; order route; flight search query with date-range (whole day) + origin/destination code joins; seat map in `/:id`. Install `razorpay` in apps/api (import lazily so the mock path needs no network).
 - [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5:** Commit: `feat(api): card validation and flight search`
+- [ ] **Step 5:** Commit: `feat(api): card validation, payment provider (razorpay/mock), flight search`
 
-### Task 3.2: Booking create (seat hold + payment + ticket) & PNR
+### Task 3.2: Booking create (seat hold + payment verify + ticket) & PNR
 
 **Files:**
 - Create: `apps/api/src/lib/pnr.ts`, `apps/api/src/routes/bookings.ts`, test `bookings.test.ts`
 
 **Interfaces:**
-- Consumes: `validateCard`, `prisma`, `requireAuth`.
-- Produces: `POST /api/bookings` (flightId, seatNo, passenger details+preferences, card) → transaction: validate card, lock seat (`status AVAILABLE→BOOKED`, fail 409 if taken), create Booking (`pnr` from `genPnr()`), Payment (last4), Ticket, increment `flight.seatsBooked`, persist passenger preferences. Returns booking with flight+seat+payment. `genPnr(): string` 6-char A–Z0–9.
+- Consumes: `getPaymentProvider`, `validateCard`, `prisma`, `requireAuth`.
+- Produces: `POST /api/bookings` (auth) body = {flightId, seatNo, passenger details+preferences, payment}. `payment` is either Razorpay proof `{razorpay_order_id, razorpay_payment_id, razorpay_signature}` or, on the mock provider, `{orderId, card:{number,expiry,cvv}}`. Flow: call `provider.verify(payment)` → if `!ok` return 402; then `prisma.$transaction`: lock seat (`AVAILABLE→BOOKED`, 409 if taken), create Booking (`pnr` from `genPnr()`), Payment (provider, orderId, paymentId, amount, status PAID, last4/method if present), Ticket, increment `flight.seatsBooked`, persist passenger preferences. Returns booking with flight+seat+payment. `genPnr(): string` 6-char A–Z0–9.
 
-- [ ] **Step 1 (test):** booking a free seat → 200, seat becomes BOOKED, payment last4 set; booking same seat again → 409; invalid card → 400.
+- [ ] **Step 1 (test):** booking a free seat with a valid mock payment → 200, seat BOOKED, Payment status PAID; booking same seat again → 409; a declined/invalid mock payment → 402 and seat stays AVAILABLE.
 - [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Implement inside `prisma.$transaction`.
+- [ ] **Step 3:** Implement: verify payment BEFORE the seat transaction; keep the transaction atomic (if seat already taken, the payment is recorded as refundable/void — for mock just don't create the booking).
 - [ ] **Step 4:** Run → PASS.
-- [ ] **Step 5:** Commit: `feat(api): booking creation with seat lock, payment, ticket`
+- [ ] **Step 5:** Commit: `feat(api): booking creation with payment verify, seat lock, ticket`
 
 ### Task 3.3: My bookings, cancel + seat release, e-ticket data
 
