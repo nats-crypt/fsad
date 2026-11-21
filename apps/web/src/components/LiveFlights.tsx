@@ -18,12 +18,19 @@ interface LiveFlight {
 }
 interface LiveResult {
   available: boolean;
+  source?: 'serpapi' | 'local';
   flights: LiveFlight[];
   message?: string;
 }
 
 const fmtDur = (m: number) => `${Math.floor(m / 60)}h ${m % 60}m`;
-const fmtTime = (t: string) => (t && t.includes(' ') ? t.split(' ')[1] : t);
+const fmtTime = (t: string) => {
+  if (!t) return '';
+  if (t.includes('T')) return t.slice(11, 16); // ISO
+  if (t.includes(' ')) return t.split(' ')[1]; // "YYYY-MM-DD HH:MM"
+  return t;
+};
+const sym = (c: string) => (c === 'INR' ? '₹' : c === 'USD' ? '$' : '');
 
 export default function LiveFlights() {
   const [departureId, setDepartureId] = useState('CDG');
@@ -137,8 +144,13 @@ export default function LiveFlights() {
 
         {res && res.available && (
           <>
-            <p className="text-sm text-runway font-heading tracking-wide mb-4">
-              {res.flights.length} live result{res.flights.length !== 1 ? 's' : ''}
+            <p className="text-sm text-runway font-heading tracking-wide mb-4 flex items-center gap-2">
+              {res.source === 'local' ? (
+                <span className="badge badge-blue">Horizon DB · live fares unavailable</span>
+              ) : (
+                <span className="badge badge-gold">Live via Google Flights</span>
+              )}
+              {res.flights.length} result{res.flights.length !== 1 ? 's' : ''}
             </p>
             <div className="space-y-4 stagger-reveal">
               {res.flights.map((f, i) => (
@@ -175,7 +187,7 @@ export default function LiveFlights() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="font-heading text-xl text-gold">
-                      {f.currency === 'USD' ? '$' : ''}{f.price.toLocaleString()}
+                      {sym(f.currency)}{f.price.toLocaleString()}
                     </p>
                     <p className="text-[10px] text-runway uppercase tracking-wider">{f.currency}</p>
                   </div>
