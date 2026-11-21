@@ -26,6 +26,7 @@ export default defineConfig({
       RAZORPAY_KEY_SECRET: "",
       LLM_API_KEY: "",
       LLM_BASE_URL: "",
+      SERPAPI_KEY: "",
     },
   },
 });

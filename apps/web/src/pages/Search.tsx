@@ -11,9 +11,11 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  Globe,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import FlightCard from '../components/FlightCard';
+import LiveFlights from '../components/LiveFlights';
 import type { Flight, ParsedSearch } from '../types';
 import { cn } from '../lib/utils';
 
@@ -30,6 +32,7 @@ export default function Search() {
   const [sp, setSp] = useSearchParams();
   const [nlMode, setNlMode] = useState(!!sp.get('q'));
   const [nlQuery, setNlQuery] = useState(sp.get('q') ?? '');
+  const [liveMode, setLiveMode] = useState(false);
 
   // Classic form state
   const [origin, setOrigin] = useState(sp.get('origin') ?? '');
@@ -53,7 +56,7 @@ export default function Search() {
       params.set('pax', String(pax));
       return api.get<Flight[]>(`/flights?${params.toString()}`);
     },
-    enabled: !nlMode,
+    enabled: !nlMode && !liveMode,
   });
 
   // NL search mutation
@@ -120,10 +123,10 @@ export default function Search() {
           {/* Mode toggle */}
           <div className="flex items-center gap-2 mb-5">
             <button
-              onClick={() => setNlMode(false)}
+              onClick={() => { setNlMode(false); setLiveMode(false); }}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-heading tracking-wider uppercase transition-all',
-                !nlMode
+                !nlMode && !liveMode
                   ? 'bg-gold/15 text-gold border border-gold/30'
                   : 'text-runway hover:text-cloud',
               )}
@@ -132,10 +135,10 @@ export default function Search() {
               Classic
             </button>
             <button
-              onClick={() => setNlMode(true)}
+              onClick={() => { setNlMode(true); setLiveMode(false); }}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-heading tracking-wider uppercase transition-all',
-                nlMode
+                nlMode && !liveMode
                   ? 'bg-gold/15 text-gold border border-gold/30'
                   : 'text-runway hover:text-cloud',
               )}
@@ -143,9 +146,23 @@ export default function Search() {
               <Sparkles className="w-3.5 h-3.5" />
               AI Search
             </button>
+            <button
+              onClick={() => { setLiveMode(true); setNlMode(false); }}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-heading tracking-wider uppercase transition-all',
+                liveMode
+                  ? 'bg-gold/15 text-gold border border-gold/30'
+                  : 'text-runway hover:text-cloud',
+              )}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Live Fares
+            </button>
           </div>
 
-          {nlMode ? (
+          {liveMode ? (
+            <LiveFlights />
+          ) : nlMode ? (
             <form onSubmit={handleNlSearch} className="flex gap-3">
               <div className="flex-1 input-group">
                 <Zap className="input-icon w-4 h-4 text-gold" />
@@ -270,6 +287,8 @@ export default function Search() {
         </div>
 
         {/* Results */}
+        {!liveMode && (
+          <>
         {isLoading && (
           <div className="flex flex-col items-center gap-4 py-16 animate-fade-in">
             <Loader2 className="w-10 h-10 text-gold animate-spin" />
@@ -331,6 +350,8 @@ export default function Search() {
               Enter search criteria to find flights
             </p>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

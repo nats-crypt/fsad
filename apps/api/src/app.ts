@@ -8,6 +8,7 @@ import { ZodError } from "zod";
 import { HttpError } from "./lib/http-error.js";
 import { authRouter } from "./routes/auth.js";
 import { flightsRouter } from "./routes/flights.js";
+import { flightsLiveRouter } from "./routes/flights-live.js";
 import { paymentsRouter } from "./routes/payments.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { aircraftRouter } from "./routes/aircraft.js";
@@ -40,6 +41,7 @@ export function createApp() {
 
   // Mount routers
   app.use("/api/auth", authRouter);
+  app.use("/api/flights/live", flightsLiveRouter);
   app.use("/api/flights", flightsRouter);
   app.use("/api/payments", paymentsRouter);
   app.use("/api/bookings", bookingsRouter);
