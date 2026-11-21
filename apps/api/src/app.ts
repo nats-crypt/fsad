@@ -1,6 +1,9 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve, join } from "node:path";
+import { existsSync } from "node:fs";
 import { ZodError } from "zod";
 import { HttpError } from "./lib/http-error.js";
 import { authRouter } from "./routes/auth.js";
@@ -52,6 +55,17 @@ export function createApp() {
   app.use("/api/ai/optimizer", aiOptimizerRouter);
   app.use("/api/ai/fare-forecast", aiFareRouter);
   app.use("/api/ai/rebooking", aiRebookingRouter);
+
+  // Serve the built frontend (single-process mode) when apps/web/dist exists.
+  // Non-/api GET requests fall back to index.html for client-side routing.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const webDist = resolve(here, "../../web/dist");
+  if (existsSync(webDist)) {
+    app.use(express.static(webDist));
+    app.get(/^\/(?!api\/).*/, (_req: Request, res: Response) => {
+      res.sendFile(join(webDist, "index.html"));
+    });
+  }
 
   // Central error middleware (must be last, 4-arg signature)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

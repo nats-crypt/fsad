@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { cn } from '../lib/utils';
-import ThemeToggle from './ThemeToggle';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -92,7 +91,6 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="hidden md:flex items-center gap-3">
-          <ThemeToggle />
           {user ? (
             <div className="relative">
               <button
@@ -226,7 +224,6 @@ export default function Navbar() {
             </NavLink>
           )}
           <div className="pt-2 border-t border-sky-light/20 flex items-center gap-2">
-            <ThemeToggle />
             {user ? (
               <button
                 onClick={() => {
