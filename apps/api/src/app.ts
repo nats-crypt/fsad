@@ -4,6 +4,9 @@ import cookieParser from "cookie-parser";
 import { ZodError } from "zod";
 import { HttpError } from "./lib/http-error.js";
 import { authRouter } from "./routes/auth.js";
+import { flightsRouter } from "./routes/flights.js";
+import { paymentsRouter } from "./routes/payments.js";
+import { bookingsRouter } from "./routes/bookings.js";
 
 export function createApp() {
   const app = express();
@@ -24,6 +27,9 @@ export function createApp() {
 
   // Mount routers
   app.use("/api/auth", authRouter);
+  app.use("/api/flights", flightsRouter);
+  app.use("/api/payments", paymentsRouter);
+  app.use("/api/bookings", bookingsRouter);
 
   // Central error middleware (must be last, 4-arg signature)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
