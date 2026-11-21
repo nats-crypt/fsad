@@ -262,6 +262,15 @@ flightsRouter.delete(
       }
 
       // Delete dependent records before deleting the flight (FK constraints)
+      // 1. Find booking IDs for this flight
+      const bookings = await prisma.booking.findMany({ where: { flightId: id }, select: { id: true } });
+      const bookingIds = bookings.map((b) => b.id);
+      // 2. Delete in FK order
+      if (bookingIds.length > 0) {
+        await prisma.ticket.deleteMany({ where: { bookingId: { in: bookingIds } } });
+        await prisma.payment.deleteMany({ where: { bookingId: { in: bookingIds } } });
+        await prisma.booking.deleteMany({ where: { id: { in: bookingIds } } });
+      }
       await prisma.seat.deleteMany({ where: { flightId: id } });
       await prisma.crewAssignment.deleteMany({ where: { flightId: id } });
       await prisma.flight.delete({ where: { id } });

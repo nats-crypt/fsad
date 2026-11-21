@@ -12,7 +12,7 @@ const authGuard = [requireAuth, requireRole("ADMIN", "STAFF")];
 const createDutySchema = z.object({
   employeeId: z.string(),
   dutyArea: z.string(),
-  startAt: z.string(),
+  startAt: z.string().datetime(),
 });
 
 /** POST /api/duty — start a duty report */

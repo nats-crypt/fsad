@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import type { ZodSchema } from "zod";
+import { Prisma } from "@prisma/client";
 import { requireAuth, requireRole } from "./auth.js";
 import { validate } from "./validate.js";
 import { HttpError } from "./http-error.js";
@@ -19,6 +20,18 @@ interface ModelDelegate {
 interface CrudOptions {
   /** Roles allowed to perform write operations (POST, PUT, DELETE) */
   roles: string[];
+}
+
+function serializeRecord(record: unknown): unknown {
+  if (record === null || record === undefined) return record;
+  if (record instanceof Prisma.Decimal) return Number(record);
+  if (Array.isArray(record)) return record.map(serializeRecord);
+  if (typeof record === "object") {
+    return Object.fromEntries(
+      Object.entries(record as Record<string, unknown>).map(([k, v]) => [k, serializeRecord(v)])
+    );
+  }
+  return record;
 }
 
 /**
@@ -42,7 +55,7 @@ export function makeCrudRouter(
   router.get("/", async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const records = await modelDelegate.findMany();
-      res.json(records);
+      res.json(serializeRecord(records));
     } catch (err) {
       next(err);
     }
@@ -55,7 +68,7 @@ export function makeCrudRouter(
       if (!record) {
         throw new HttpError(404, "Record not found");
       }
-      res.json(record);
+      res.json(serializeRecord(record));
     } catch (err) {
       next(err);
     }
@@ -69,7 +82,7 @@ export function makeCrudRouter(
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const record = await modelDelegate.create({ data: req.body as unknown });
-        res.status(201).json(record);
+        res.status(201).json(serializeRecord(record));
       } catch (err) {
         next(err);
       }
@@ -91,8 +104,11 @@ export function makeCrudRouter(
           where: { id: req.params.id },
           data: req.body as unknown,
         });
-        res.json(record);
+        res.json(serializeRecord(record));
       } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+          return next(new HttpError(404, "Record not found"));
+        }
         next(err);
       }
     }
@@ -111,6 +127,9 @@ export function makeCrudRouter(
         await modelDelegate.delete({ where: { id: req.params.id } });
         res.json({ message: "Deleted" });
       } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+          return next(new HttpError(404, "Record not found"));
+        }
         next(err);
       }
     }
