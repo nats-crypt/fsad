@@ -24,6 +24,8 @@ export default defineConfig({
     env: {
       RAZORPAY_KEY_ID: "",
       RAZORPAY_KEY_SECRET: "",
+      LLM_API_KEY: "",
+      LLM_BASE_URL: "",
     },
   },
 });

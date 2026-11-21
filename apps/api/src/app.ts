@@ -13,6 +13,10 @@ import { crewRouter } from "./routes/crew.js";
 import { attendanceRouter } from "./routes/attendance.js";
 import { dutyRouter } from "./routes/duty.js";
 import { reportsRouter } from "./routes/reports.js";
+import { aiSearchRouter } from "./routes/ai-search.js";
+import { aiOptimizerRouter } from "./routes/ai-optimizer.js";
+import { aiFareRouter } from "./routes/ai-fare.js";
+import { aiRebookingRouter } from "./routes/ai-rebooking.js";
 
 export function createApp() {
   const app = express();
@@ -42,6 +46,12 @@ export function createApp() {
   app.use("/api/attendance", attendanceRouter);
   app.use("/api/duty", dutyRouter);
   app.use("/api/reports", reportsRouter);
+
+  // AI feature routes
+  app.use("/api/ai/search", aiSearchRouter);
+  app.use("/api/ai/optimizer", aiOptimizerRouter);
+  app.use("/api/ai/fare-forecast", aiFareRouter);
+  app.use("/api/ai/rebooking", aiRebookingRouter);
 
   // Central error middleware (must be last, 4-arg signature)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
