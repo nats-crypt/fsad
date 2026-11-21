@@ -8,11 +8,7 @@ export function validate(schema: ZodSchema) {
       req.body = schema.parse(req.body);
       next();
     } catch (err) {
-      if (err instanceof ZodError) {
-        next(err);
-      } else {
-        next(err);
-      }
+      next(err);
     }
   };
 }

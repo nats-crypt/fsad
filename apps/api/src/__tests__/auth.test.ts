@@ -123,9 +123,8 @@ describe("POST /api/auth/logout", () => {
     expect(res.status).toBe(200);
     // Cookie cleared (Set-Cookie header should contain 'token=;' or similar)
     const setCookie = res.headers["set-cookie"] as string[] | string | undefined;
-    if (setCookie) {
-      const cookieHeader = Array.isArray(setCookie) ? setCookie.join(";") : setCookie;
-      expect(cookieHeader).toMatch(/token=/);
-    }
+    expect(setCookie).toBeTruthy();
+    const cookieHeader = Array.isArray(setCookie) ? setCookie.join(";") : setCookie;
+    expect(cookieHeader).toMatch(/token=/);
   });
 });

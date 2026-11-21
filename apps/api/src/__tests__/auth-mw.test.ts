@@ -101,12 +101,12 @@ describe("requireRole", () => {
   it("allows access when role matches", async () => {
     const token = signToken({ id: "user-3", role: "ADMIN" });
 
-    const app = express();
-    app.use(express.json());
-    app.get("/test", requireAuth, requireRole("ADMIN"), (_req, res) =>
+    const mw = express();
+    mw.use(express.json());
+    mw.get("/test", requireAuth, requireRole("ADMIN"), (_req, res) =>
       res.json({ ok: true })
     );
-    app.use(
+    mw.use(
       (
         err: { status?: number; message: string },
         _req: express.Request,
@@ -117,7 +117,7 @@ describe("requireRole", () => {
       }
     );
 
-    const res = await request(app)
+    const res = await request(mw)
       .get("/test")
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
