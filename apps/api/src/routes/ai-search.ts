@@ -11,7 +11,7 @@ const searchBodySchema = z.object({
   text: z.string().min(1),
 });
 
-/** Time-of-day hour ranges (UTC) */
+/** Time-of-day hour ranges (local server time, matching how flight times are stored) */
 const TIME_RANGES: Record<string, [number, number]> = {
   MORNING: [5, 12],
   AFTERNOON: [12, 17],
@@ -24,7 +24,7 @@ function matchesTimeOfDay(
   timeOfDay: ParsedSearch["timeOfDay"]
 ): boolean {
   if (!timeOfDay) return true;
-  const hour = departAt.getUTCHours();
+  const hour = departAt.getHours();
 
   if (timeOfDay === "NIGHT") {
     return hour >= 21 || hour < 5;

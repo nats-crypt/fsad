@@ -32,7 +32,7 @@ Relative date rules (today is ${new Date().toISOString().slice(0, 10)}):
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10_000);
+      const timeoutId = setTimeout(() => controller.abort(), 6_000);
 
       try {
         const response = await fetch(`${baseUrl}/chat/completions`, {

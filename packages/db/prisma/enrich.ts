@@ -21,6 +21,7 @@ const SLOTS = [
   { h: 18, m: 15, dur: 140 },  // evening
 ];
 const DAYS = 14;
+const CREW_ROLES = ["Captain", "First Officer", "Purser", "Senior Cabin Crew", "Cabin Crew", "Cabin Crew"];
 
 function seatsForCapacity(cap: number) {
   // rows of 6 (A-F). row1 FIRST, rows2-3 BUSINESS, rest ECONOMY
@@ -72,6 +73,15 @@ async function main() {
         await prisma.seat.createMany({
           data: seatsForCapacity(CAP).map((s) => ({ ...s, flightId: flight.id, status: "AVAILABLE" })),
         });
+        // Assign a varied crew (0–8) so the optimizer shows OVER/OK/UNDER variety.
+        const crewN = rand(0, 8);
+        if (crewN > 0 && employees.length) {
+          const crewPick = [...employees].sort(() => Math.random() - 0.5).slice(0, Math.min(crewN, employees.length));
+          await prisma.crewAssignment.createMany({
+            data: crewPick.map((e, ci) => ({ flightId: flight.id, employeeId: e.id, role: CREW_ROLES[ci % CREW_ROLES.length] })),
+            skipDuplicates: true,
+          });
+        }
         flightsCreated++; seatsCreated += CAP;
       }
     }
@@ -99,9 +109,11 @@ async function main() {
   });
   let bookings = 0, cancelled = 0, revenue = 0;
   const genPnr = () => Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[rand(0, 31)]).join("");
-  for (const f of futureFlights) {
+  for (const [idx, f] of futureFlights.entries()) {
     const avail = f.seats.filter((s) => s.status === "AVAILABLE");
-    const n = Math.min(rand(2, 7), avail.length);
+    // First ~20 flights: high load (70–90%) so optimizer/fare-forecast show variety.
+    const target = idx < 20 ? Math.floor(f.capacity * (0.7 + Math.random() * 0.2)) : rand(2, 7);
+    const n = Math.min(target, avail.length);
     for (let k = 0; k < n; k++) {
       const seat = avail[k];
       const isCancelled = Math.random() < 0.15;
@@ -119,7 +131,13 @@ async function main() {
         if (!isCancelled) {
           await prisma.seat.update({ where: { id: seat.id }, data: { status: "BOOKED" } });
           revenue += fare; bookings++;
-        } else { cancelled++; }
+        } else {
+          // Cancelled booking keeps the (unique) seatId; mark the seat HELD so it
+          // isn't offered as AVAILABLE (a cancelled seat isn't freely rebookable
+          // while the booking row holds its seatId).
+          await prisma.seat.update({ where: { id: seat.id }, data: { status: "HELD" } });
+          cancelled++;
+        }
         void bk;
       } catch { /* seat race / unique – skip */ }
     }
