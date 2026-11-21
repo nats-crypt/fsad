@@ -15,18 +15,13 @@ async function getAdminToken(): Promise<string> {
   return signToken({ id: user.id, role: user.role });
 }
 
-async function getPassengerToken(): Promise<string> {
-  const email = `pass+${uid()}@horizon.test`;
-  const res = await request(app)
-    .post("/api/auth/register")
-    .send({ email, password: "Passw0rd!", fullName: "Test Passenger" });
-  return res.body.token as string;
-}
-
 describe("Aircraft CRUD – /api/aircraft", () => {
   let createdAircraftId: string | undefined;
+  let staffAircraftId: string | undefined;
   let adminToken: string;
   let passengerToken: string;
+  let staffToken: string;
+  let staffUserId: string | undefined;
 
   // Track registered passenger for cleanup
   const passengerEmails: string[] = [];
@@ -40,6 +35,14 @@ describe("Aircraft CRUD – /api/aircraft", () => {
       .post("/api/auth/register")
       .send({ email, password: "Passw0rd!", fullName: "Test Passenger" });
     passengerToken = res.body.token as string;
+
+    // Create a temporary STAFF user for role tests
+    const staffEmail = `staff+${uid()}@horizon.test`;
+    const staffUser = await prisma.user.create({
+      data: { email: staffEmail, passwordHash: "x", role: "STAFF" },
+    });
+    staffUserId = staffUser.id;
+    staffToken = signToken({ id: staffUser.id, role: "STAFF" });
   });
 
   afterAll(async () => {
@@ -47,10 +50,17 @@ describe("Aircraft CRUD – /api/aircraft", () => {
     if (createdAircraftId) {
       await prisma.aircraft.deleteMany({ where: { id: createdAircraftId } });
     }
+    if (staffAircraftId) {
+      await prisma.aircraft.deleteMany({ where: { id: staffAircraftId } });
+    }
     // Clean up registered passengers
     for (const email of passengerEmails) {
       await prisma.passenger.deleteMany({ where: { user: { email } } });
       await prisma.user.deleteMany({ where: { email } });
+    }
+    // Clean up STAFF user
+    if (staffUserId) {
+      await prisma.user.deleteMany({ where: { id: staffUserId } });
     }
   });
 
@@ -71,6 +81,24 @@ describe("Aircraft CRUD – /api/aircraft", () => {
     expect(res.body.registration).toBe(reg);
 
     createdAircraftId = res.body.id as string;
+  });
+
+  it("STAFF token creates aircraft → 201", async () => {
+    const reg = `STAFF-${uid().slice(0, 5).toUpperCase()}`;
+    const res = await request(app)
+      .post("/api/aircraft")
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({
+        registration: reg,
+        model: "Airbus A320",
+        capacity: 150,
+        status: "ACTIVE",
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.registration).toBe(reg);
+
+    staffAircraftId = res.body.id as string;
   });
 
   it("PASSENGER token gets 403 when creating an aircraft", async () => {

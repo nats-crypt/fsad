@@ -80,7 +80,7 @@ export function makeCrudRouter(
   router.put(
     "/:id",
     ...writeGuard,
-    validate(zodSchema.partial ? zodSchema.partial() : zodSchema),
+    validate((zodSchema as any).partial?.() ?? zodSchema),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const existing = await modelDelegate.findUnique({ where: { id: req.params.id } });
