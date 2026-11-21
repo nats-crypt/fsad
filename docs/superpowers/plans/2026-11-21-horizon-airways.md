@@ -14,7 +14,9 @@
 - Node 20+. ESM modules.
 - Roles are exactly: `PASSENGER`, `STAFF`, `ADMIN`.
 - Payments are **mock only** — validate 16-digit card (Luhn) and store last-4; never charge.
-- AI runs via a provider interface: `localProvider` (default, offline) and `llmProvider` (only when `ANTHROPIC_API_KEY` set). Frontend never branches on which is used.
+- AI runs via a provider interface: `localProvider` (default, offline) and `llmProvider` (used only when `LLM_API_KEY` is set). The LLM provider calls an **OpenAI-compatible** chat-completions endpoint via `fetch` — `LLM_BASE_URL` (e.g. `https://integrate.api.nvidia.com/v1`) + `LLM_MODEL` (e.g. `moonshotai/kimi-k3.1-pro`) + Bearer `LLM_API_KEY`. No vendor SDK. Frontend never branches on which provider is used.
+- Object storage is S3-compatible (Neon Object Storage). The API uses `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` with `forcePathStyle: true`, reading `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `S3_BUCKET` (default `assets`). Used to store generated e-ticket PDFs; clients fetch them via short-lived presigned URLs.
+- Database: **Neon Postgres** for the app and production (`DATABASE_URL` in `.env`). The automated test suite uses a **local Docker Postgres** via `.env.test` so tests never touch live demo data. Vitest loads `.env.test`.
 - Credit card: 16 digits + Luhn + expiry in future + 3-digit CVV.
 - All API inputs validated with Zod; all mutating routes role-gated.
 - Commit after every passing step. Conventional commit messages.
@@ -356,6 +358,27 @@ it("health returns ok", async () => {
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implement in transaction. **Step 4:** Run → PASS.
 - [ ] **Step 5:** Commit: `feat(api): booking listing, cancellation, e-ticket payload`
 
+### Task 3.4: S3-backed e-ticket PDF storage
+
+**Files:**
+- Create: `apps/api/src/lib/storage.ts`, `apps/api/src/lib/ticket-pdf.ts`, test `storage.test.ts`
+- Modify: `packages/db/prisma/schema.prisma` (add `pdfKey String?` to `Ticket`), add migration
+- Modify: `apps/api/src/routes/bookings.ts`
+
+**Interfaces:**
+- Produces:
+  - `storage.ts`: `s3` client (`new S3Client({ forcePathStyle: true })` — SDK reads `AWS_ENDPOINT_URL_S3`/`AWS_REGION`/keys from env), `BUCKET = process.env.S3_BUCKET ?? "assets"`, `ensureBucket()`, `putObject(key, body, contentType)`, `presignGet(key, expiresIn=3600): Promise<string>`. Deps: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`.
+  - `ticket-pdf.ts`: `renderTicketPdf(ticketData): Buffer` using `pdfkit` (PNR, flight, passenger, seat, fare).
+  - On booking create (Task 3.2), after the booking txn: render the PDF, upload to `tickets/{pnr}.pdf`, store the object key in `Ticket.pdfKey`. `GET /api/bookings/:id/ticket` returns `{ ticket: {...}, pdfUrl }` where `pdfUrl` is a presigned GET URL (regenerated per request).
+
+**Note:** S3 is configured against Neon Object Storage; credentials are in `.env`. The bucket `assets` already exists. If `AWS_ENDPOINT_URL_S3` is unset in a test env, `storage.ts` must no-op gracefully (skip upload, return `null` pdfUrl) so booking tests don't require network.
+
+- [ ] **Step 1 (test):** `storage.test.ts` — with S3 env unset, `putObject`/`presignGet` are skipped and callers get `null` (no throw); key builder produces `tickets/{pnr}.pdf`. (Live S3 round-trip is validated manually, not in CI.)
+- [ ] **Step 2:** Run → FAIL.
+- [ ] **Step 3:** Add `pdfKey` to Ticket + `prisma migrate dev --name ticket_pdf_key` (run against local test DB; controller applies to Neon separately). Implement storage + pdf + wire into booking create and ticket route. Install `pdfkit`, `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` in `apps/api`.
+- [ ] **Step 4:** Run → PASS.
+- [ ] **Step 5:** Commit: `feat(api): e-ticket PDF generation and S3 storage`
+
 ---
 
 ## Phase 4 — Admin Domain API
@@ -427,7 +450,7 @@ it("health returns ok", async () => {
 
 - [ ] **Step 1 (test):** local parse of "cheap morning flight to Delhi next Friday" → destination `DEL`, timeOfDay `MORNING`, sort `CHEAPEST`, dateFrom within next 7 days.
 - [ ] **Step 2:** FAIL.
-- [ ] **Step 3:** Implement `airports.ts` city→IATA lexicon; local parser (regex for cities/relative dates like today/tomorrow/next <weekday>, keyword→timeOfDay/sort); `llm.ts` uses `@anthropic-ai/sdk` structured JSON extraction behind same interface; route applies `parsed` to flight search + sort.
+- [ ] **Step 3:** Implement `airports.ts` city→IATA lexicon; local parser (regex for cities/relative dates like today/tomorrow/next <weekday>, keyword→timeOfDay/sort); `llm.ts` calls the OpenAI-compatible endpoint (`POST {LLM_BASE_URL}/chat/completions`, model `LLM_MODEL`, Bearer `LLM_API_KEY`, `temperature:0`, a system prompt instructing JSON-only output matching `ParsedSearch`) via `fetch` and parses the JSON from the response — behind the same `AiProvider` interface; route applies `parsed` to flight search + sort.
 - [ ] **Step 4:** PASS.
 - [ ] **Step 5:** Commit: `feat(ai): provider interface and NL flight search`
 

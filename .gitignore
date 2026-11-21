@@ -1,7 +1,16 @@
 node_modules/
 dist/
+build/
+
+# Env files — ignore ALL variants except the committed template
 .env
-.env.local
+.env.*
+!.env.example
 packages/db/.env
+apps/api/.env
+apps/web/.env
+
 .vercel/
 *.log
+.DS_Store
+coverage/
