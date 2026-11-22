@@ -150,6 +150,11 @@ async function runNotifications() {
 }
 
 export function startNotificationScheduler() {
+  const dbUrl = process.env.DATABASE_URL ?? "";
+  if (!dbUrl.startsWith("postgresql://") && !dbUrl.startsWith("postgres://")) {
+    console.warn("[notifications] DATABASE_URL not set correctly — scheduler disabled");
+    return;
+  }
   // Dynamic import to keep cron out of test environments
   import("node-cron").then(({ default: cron }) => {
     // Run every 15 minutes
@@ -159,7 +164,11 @@ export function startNotificationScheduler() {
       );
     });
     console.log("[notifications] scheduler started (every 15 min)");
-    // Also run immediately on startup
-    runNotifications().catch(console.error);
+    // Delay first run by 5s to let DB connections settle
+    setTimeout(() => {
+      runNotifications().catch(err =>
+        console.error("[notifications] initial run error:", err)
+      );
+    }, 5000);
   });
 }
