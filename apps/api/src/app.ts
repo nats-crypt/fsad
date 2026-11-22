@@ -21,7 +21,7 @@ import { aiSearchRouter } from "./routes/ai-search.js";
 import { aiOptimizerRouter } from "./routes/ai-optimizer.js";
 import { aiFareRouter } from "./routes/ai-fare.js";
 import { aiRebookingRouter } from "./routes/ai-rebooking.js";
-import { flightStatusRouter } from "./routes/flight-status.js";
+import { isMailConfigured, sendMail } from "./lib/mailer.js";
 
 export function createApp() {
   const app = express();
@@ -40,7 +40,17 @@ export function createApp() {
 
   // Health check
   app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({ ok: true });
+    res.json({ ok: true, mail: isMailConfigured() });
+  });
+
+  // Mail test (dev/debug only)
+  app.get("/api/health/mail-test", async (_req: Request, res: Response) => {
+    if (!isMailConfigured()) {
+      return res.json({ ok: false, reason: "GMAIL_USER or GMAIL_APP_PASSWORD not set" });
+    }
+    const to = process.env.GMAIL_USER!;
+    const sent = await sendMail({ to, subject: "Horizon Airways — Mail Test", html: "<p>Mail is working!</p>" });
+    res.json({ ok: sent, to });
   });
 
   // Mount routers
