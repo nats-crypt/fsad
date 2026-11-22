@@ -140,6 +140,9 @@ fsad/
 - **E-ticket** — boarding-pass style, printable + downloadable, stored in S3 (served via presigned URL)
 - **My bookings** — view, cancel (seat released, refund recorded), with AI rebooking suggestions
 - **Live Fares** — real-time Google Flights prices; falls back to internal flights automatically
+- **Passenger profile** — save full name, phone, meal preference, seat preference and special assistance needs (`/profile`)
+- **Preference pre-fill** — booking form auto-fills passenger details from saved profile
+- **Change password** — secure password change from the profile page
 
 ### Admin / Staff
 - **Aircraft** & **Employee** CRUD
@@ -344,6 +347,9 @@ All routes are under `/api`. 🔒 = requires auth; 👮 = requires `STAFF`/`ADMI
 | POST | `/auth/login` | Login → `{token, user}` |
 | GET | `/auth/me` 🔒 | Current user |
 | POST | `/auth/logout` | Clear session cookie |
+| GET | `/auth/profile` 🔒 | Get passenger profile + preferences |
+| PATCH | `/auth/profile` 🔒 | Update passenger profile + preferences |
+| POST | `/auth/change-password` 🔒 | Change password (verifies current password) |
 | GET | `/flights?origin&destination&date&pax` | Search bookable flights (+ `seatsLeft`) |
 | GET | `/flights/:id` | Flight detail incl. seat map |
 | POST/PUT/DELETE | `/flights` 👮 | Create/update/delete flights (auto-generates seats) |
@@ -383,8 +389,8 @@ cp .env.example .env            # fill in keys, or leave blank for fallbacks
 
 # 3. Schema + data
 npm run db:generate
-npm run db:migrate
-npm run db:seed                 # base data
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/horizon" npm run db:migrate
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/horizon" npm run db:seed
 npm run db:demo                 # rich demo data (flights, bookings, attendance, reports)
 
 # 4. Run

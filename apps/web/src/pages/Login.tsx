@@ -105,6 +105,11 @@ export default function Login() {
                   autoComplete="current-password"
                 />
               </div>
+              <div className="text-right mt-1">
+                <Link to="/forgot-password" className="text-xs text-gold hover:text-gold/80 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Ticket,
   ChevronDown,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { cn } from '../lib/utils';
@@ -129,6 +130,16 @@ export default function Navbar() {
                     <Ticket className="w-4 h-4" />
                     My Bookings
                   </Link>
+                  {!isAdmin && (
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-cloud/80 hover:bg-sky-light/30 hover:text-cloud transition-colors"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Settings className="w-4 h-4" />
+                      My Profile
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -205,6 +216,22 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             >
               My Bookings
+            </NavLink>
+          )}
+          {user && !isAdmin && (
+            <NavLink
+              to="/profile"
+              className={({ isActive }) =>
+                cn(
+                  'py-2 px-3 rounded-lg font-heading tracking-wider uppercase text-sm',
+                  isActive
+                    ? 'text-gold bg-gold/10'
+                    : 'text-cloud/80 hover:text-cloud hover:bg-sky-light/30',
+                )
+              }
+              onClick={() => setMenuOpen(false)}
+            >
+              My Profile
             </NavLink>
           )}
           {isAdmin && (

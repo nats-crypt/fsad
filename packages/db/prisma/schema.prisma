@@ -8,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  passwordHash  String
-  role          Role           @default(PASSENGER)
-  createdAt     DateTime       @default(now())
-  employee      Employee?
-  passenger     Passenger?
-  paymentOrders PaymentOrder[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String
+  role                Role                 @default(PASSENGER)
+  createdAt           DateTime             @default(now())
+  employee            Employee?
+  passenger           Passenger?
+  paymentOrders       PaymentOrder[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Passenger {
@@ -23,6 +24,10 @@ model Passenger {
   userId      String    @unique
   fullName    String
   phone       String?
+  dob         DateTime?
+  nationality String?
+  passportEnc String?
+  address     String?
   preferences Json?
   bookings    Booking[]
   user        User      @relation(fields: [userId], references: [id])
@@ -180,6 +185,16 @@ model DutyReport {
   startAt    DateTime
   endAt      DateTime?
   employee   Employee  @relation(fields: [employeeId], references: [id])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 enum Role {

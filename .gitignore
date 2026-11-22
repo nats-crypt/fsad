@@ -14,3 +14,23 @@ apps/web/.env
 *.log
 .DS_Store
 coverage/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Prisma generated client (regenerated via db:generate)
+packages/db/node_modules/
+
+# Test output
+test-results/
+vitest-report/
+
+# Temp / uploads
+tmp/
+uploads/

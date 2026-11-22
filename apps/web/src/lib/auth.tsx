@@ -22,6 +22,10 @@ interface AuthActions {
     password: string;
     fullName: string;
     phone?: string;
+    dob?: string;
+    nationality?: string;
+    passportNo?: string;
+    address?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -77,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string;
       fullName: string;
       phone?: string;
+      dob?: string;
+      nationality?: string;
+      passportNo?: string;
+      address?: string;
     }) => {
       const { token: t, user: u } = await api.post<{
         token: string;

@@ -116,6 +116,14 @@ export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: Sea
                 )}
               >
                 {CABIN_LABELS[cabin as keyof typeof CABIN_LABELS] ?? cabin}
+                {(() => {
+                  const firstSeat = rows.values().next().value?.[0];
+                  return firstSeat?.fare ? (
+                    <span className="ml-1.5 opacity-80">
+                      · ₹{firstSeat.fare.toLocaleString()}
+                    </span>
+                  ) : null;
+                })()}
               </span>
               <div className="h-px flex-1 bg-sky-light/20" />
             </div>
@@ -162,7 +170,9 @@ export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: Sea
                             title={
                               isBooked
                                 ? `${seat.seatNo} — Booked`
-                                : `${seat.seatNo} — ${seat.cabinClass}`
+                                : seat.fare
+                                  ? `${seat.seatNo} — ${seat.cabinClass} — ₹${seat.fare.toLocaleString()}`
+                                  : `${seat.seatNo} — ${seat.cabinClass}`
                             }
                             aria-label={`Seat ${seat.seatNo}`}
                             aria-pressed={isSelected}

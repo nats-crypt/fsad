@@ -38,11 +38,10 @@ paymentsRouter.post(
         throw new HttpError(409, "Seat is not available");
       }
 
-      // fare is in RUPEES (server-computed from flight.baseFare).
-      const fare = Number(flight.baseFare);
-      // amount in PAISE for the payment provider (Razorpay requires paise;
-      // mock provider mirrors this for consistency — m4).
-      const amountPaise = Math.round(fare * 100);
+      // Cabin class fare multipliers: FIRST = 3×, BUSINESS = 2×, ECONOMY = 1×
+      const multiplier = seat.cabinClass === "FIRST" ? 3 : seat.cabinClass === "BUSINESS" ? 2 : 1;
+      const fare = Math.round(Number(flight.baseFare) * multiplier);
+      const amountPaise = fare * 100;
 
       const provider = getPaymentProvider();
       const receipt = `rcpt_${flightId.slice(0, 8)}_${seatNo}`;

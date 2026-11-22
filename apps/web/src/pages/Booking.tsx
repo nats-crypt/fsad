@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -28,6 +28,16 @@ interface PassengerData {
     seatPref: string;
     assistance: string;
   };
+}
+
+interface PassengerProfile {
+  fullName: string;
+  phone?: string | null;
+  preferences?: {
+    meal?: string;
+    seatPref?: string;
+    assistance?: string;
+  } | null;
 }
 
 function StepIndicator({ current }: { current: Step }) {
@@ -72,6 +82,27 @@ export default function Booking() {
     phone: '',
     preferences: { meal: '', seatPref: '', assistance: '' },
   });
+
+  // Load saved profile preferences to pre-fill the passenger step
+  const { data: profile } = useQuery<PassengerProfile>({
+    queryKey: ['profile'],
+    queryFn: () => api.get<PassengerProfile>('/auth/profile'),
+    staleTime: 60_000,
+  });
+
+  // Pre-fill from profile once it loads (only if fields are still empty)
+  useEffect(() => {
+    if (!profile) return;
+    setPassenger(p => ({
+      fullName: p.fullName || profile.fullName || '',
+      phone: p.phone || profile.phone || '',
+      preferences: {
+        meal: p.preferences.meal || profile.preferences?.meal || '',
+        seatPref: p.preferences.seatPref || profile.preferences?.seatPref || '',
+        assistance: p.preferences.assistance || profile.preferences?.assistance || '',
+      },
+    }));
+  }, [profile]);
 
   const [card, setCard] = useState<MockCard>({ number: '', expiry: '', cvv: '' });
   const [cardErrors, setCardErrors] = useState<Partial<MockCard>>({});

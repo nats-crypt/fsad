@@ -111,6 +111,7 @@ flightsRouter.get(
           seatNo: s.seatNo,
           cabinClass: s.cabinClass,
           status: s.status,
+          fare: Math.round(Number(flight.baseFare) * (s.cabinClass === "FIRST" ? 3 : s.cabinClass === "BUSINESS" ? 2 : 1)),
         })),
       });
     } catch (err) {

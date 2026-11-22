@@ -11,20 +11,24 @@ const searchBodySchema = z.object({
   text: z.string().min(1),
 });
 
-/** Time-of-day hour ranges (local server time, matching how flight times are stored) */
+/** Time-of-day hour ranges in IST (UTC+5:30) */
 const TIME_RANGES: Record<string, [number, number]> = {
   MORNING: [5, 12],
   AFTERNOON: [12, 17],
   EVENING: [17, 21],
-  NIGHT: [21, 24], // We handle the 21–5 wrap separately
+  NIGHT: [21, 24],
 };
+
+const IST_OFFSET_MINUTES = 5 * 60 + 30;
 
 function matchesTimeOfDay(
   departAt: Date,
   timeOfDay: ParsedSearch["timeOfDay"]
 ): boolean {
   if (!timeOfDay) return true;
-  const hour = departAt.getHours();
+  // Convert UTC to IST before checking hour ranges
+  const istMinutes = departAt.getUTCHours() * 60 + departAt.getUTCMinutes() + IST_OFFSET_MINUTES;
+  const hour = Math.floor((istMinutes % (24 * 60)) / 60);
 
   if (timeOfDay === "NIGHT") {
     return hour >= 21 || hour < 5;

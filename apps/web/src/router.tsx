@@ -3,10 +3,13 @@ import App from './App';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Search from './pages/Search';
 import Booking from './pages/Booking';
 import Confirmation from './pages/Confirmation';
 import MyBookings from './pages/MyBookings';
+import Profile from './pages/Profile';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AircraftAdmin from './pages/admin/AircraftAdmin';
@@ -27,6 +30,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Landing /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
+      { path: 'forgot-password', element: <ForgotPassword /> },
+      { path: 'reset-password', element: <ResetPassword /> },
       { path: 'search', element: <Search /> },
       {
         path: 'book/:flightId',
@@ -49,6 +54,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <MyBookings />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         ),
       },

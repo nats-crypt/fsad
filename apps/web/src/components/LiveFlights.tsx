@@ -33,8 +33,8 @@ const fmtTime = (t: string) => {
 const sym = (c: string) => (c === 'INR' ? '₹' : c === 'USD' ? '$' : '');
 
 export default function LiveFlights() {
-  const [departureId, setDepartureId] = useState('CDG');
-  const [arrivalId, setArrivalId] = useState('AUS');
+  const [departureId, setDepartureId] = useState('DEL');
+  const [arrivalId, setArrivalId] = useState('BOM');
   const [date, setDate] = useState(
     new Date(Date.now() + 86400000).toISOString().split('T')[0],
   );

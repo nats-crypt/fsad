@@ -29,6 +29,7 @@ export interface Seat {
   seatNo: string;
   cabinClass: 'FIRST' | 'BUSINESS' | 'ECONOMY';
   status: 'AVAILABLE' | 'BOOKED' | 'HELD';
+  fare?: number;
 }
 
 export interface Flight {
