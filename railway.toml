@@ -3,6 +3,6 @@ builder = "nixpacks"
 buildCommand = "npm install --include=dev && npm run build:prod"
 
 [deploy]
-startCommand = "node --import tsx/esm apps/api/src/server.ts"
+startCommand = "npx tsx apps/api/src/server.ts"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
