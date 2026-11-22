@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm ci && npm run build:prod"
+buildCommand = "npm install --omit=dev=false && npm run build:prod"
 
 [deploy]
 startCommand = "node apps/api/dist/server.js"
