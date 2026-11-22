@@ -13,7 +13,8 @@
     "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "npm -w @horizon/api run dev",
     "dev:web": "npm -w @horizon/web run dev",
-    "build": "npm -w @horizon/db run generate && npm -w @horizon/web run build",
+    "build": "npm -w @horizon/db run generate && npm -w @horizon/web run build && npm -w @horizon/api run build",
+    "build:prod": "npm -w @horizon/db run generate && npm -w @horizon/web run build && npm -w @horizon/api run build",
     "test": "npm -w @horizon/api run test",
     "db:generate": "npm -w @horizon/db run generate",
     "db:migrate": "npm -w @horizon/db run migrate",
@@ -23,5 +24,10 @@
   "devDependencies": {
     "concurrently": "^9.0.0",
     "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.6.0",
+    "ws": "^8.23.0"
   }
 }

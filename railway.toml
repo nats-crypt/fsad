@@ -1,8 +1,7 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm run build --workspace=apps/api"
+buildCommand = "npm ci && npm run build:prod"
 startCommand = "node apps/api/dist/server.js"
-watchPatterns = ["apps/api/src/**"]
 
 [deploy]
 healthcheckPath = "/api/health"
