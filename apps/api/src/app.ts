@@ -29,7 +29,10 @@ export function createApp() {
   app.use(express.json());
   app.use(
     cors({
-      origin: process.env.CLIENT_URL ?? "http://localhost:5173",
+      origin: [
+        process.env.CLIENT_URL ?? "http://localhost:5173",
+        "https://fsad-production.up.railway.app",
+      ],
       credentials: true,
     })
   );
