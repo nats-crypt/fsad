@@ -2,7 +2,142 @@
 
 A full-stack **airline reservation & operations system** — passengers search, book, pay for and manage flights; staff run operations (scheduling, crew, attendance, reporting). Ships with **four AI features** and **real-time flight data**, as a TypeScript monorepo.
 
+**Live app:** https://fsad-production.up.railway.app  
 **Repo:** https://github.com/nats-crypt/fsad · **Tests:** 103 passing ✅
+
+---
+
+## Quick start (local dev)
+
+**Prerequisites:** Node.js 20+, Git
+
+```bash
+git clone https://github.com/nats-crypt/fsad.git
+cd fsad
+npm install
+```
+
+Create a `.env` file in the project root (ask your team lead for the values — never commit this file):
+
+```env
+DATABASE_URL=postgresql://...     # get from team lead (Neon)
+JWT_SECRET=any-random-string-here
+NODE_ENV=development
+```
+
+Run migrations and seed:
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+Start the app:
+
+```bash
+npm run dev
+```
+
+- Frontend: http://localhost:5173
+- API: http://localhost:4000
+
+---
+
+## Demo accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| Passenger | `demo@horizon.air` | `Passw0rd!` |
+| Admin | `admin@horizon.air` | `Passw0rd!` |
+
+---
+
+## Test a booking (mock payment)
+
+Since no real payment gateway is configured, use the built-in mock card:
+
+- **Card number:** `4539 1488 0343 6467`
+- **Expiry:** `12/28`
+- **CVV:** `123`
+
+To test a declined card, use any card number ending in `0002`.
+
+---
+
+## Available routes (seeded)
+
+All routes run daily for 14 days from today:
+
+| Route | Flight |
+|-------|--------|
+| DEL ↔ BOM | HA101 / HA102 |
+| DEL ↔ BLR | HA201 / HA202 |
+| DEL ↔ MAA | HA301 / HA302 |
+| DEL ↔ HYD | HA303 / HA304 |
+| DEL ↔ CCU | HA501 / HA502 |
+| BOM ↔ BLR | HA401 / HA402 |
+| BOM ↔ HYD | HA601 / HA602 |
+| BOM ↔ MAA | HA701 / HA702 |
+| BOM ↔ CCU | HA703 / HA704 |
+| BLR ↔ HYD | HA801 / HA802 |
+| BLR ↔ MAA | HA803 / HA804 |
+| BLR ↔ CCU | HA805 / HA806 |
+| HYD ↔ MAA | HA901 / HA902 |
+| HYD ↔ CCU | HA903 / HA904 |
+| MAA ↔ CCU | HA905 / HA906 |
+
+Search for a date **tomorrow or later**.
+
+---
+
+## Environment variables
+
+All optional — missing keys fall back gracefully.
+
+| Variable | Purpose | Fallback |
+|----------|---------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | — |
+| `JWT_SECRET` | JWT signing secret | — |
+| `SERPAPI_KEY` | Live Google Flights prices | Shows Horizon DB flights |
+| `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` | Real payments | Mock card form |
+| `GMAIL_USER` + `GMAIL_APP_PASSWORD` | Email notifications | Emails skipped silently |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | AI natural language search | Offline heuristics |
+| `AVIATIONSTACK_KEY` | Live flight status (delays, gates) | DB data |
+
+---
+
+## NPM scripts
+
+| Script | Action |
+|--------|--------|
+| `npm run dev` | Run API + frontend concurrently |
+| `npm run build` | Build frontend (production) |
+| `npm test` | Backend test suite (103 tests) |
+| `npm run db:migrate` | Apply DB migrations |
+| `npm run db:seed` | Seed airports, aircraft, flights, demo users |
+| `npm run db:demo` | Rich demo data (bookings, attendance, reports) |
+
+---
+
+## Architecture
+
+TypeScript monorepo:
+
+```
+fsad/
+├─ apps/
+│  ├─ api/          # Express + Prisma backend
+│  └─ web/          # React + Vite frontend
+└─ packages/
+   └─ db/           # Prisma schema, migrations, seed
+```
+
+- **Auth:** JWT Bearer tokens, bcrypt passwords, role guards (`PASSENGER` / `STAFF` / `ADMIN`)
+- **Payments:** Mock Luhn card gateway (no external key needed); Razorpay when keys set
+- **Real-time tracking:** WebSocket (`/ws/track`) via OpenSky Network — no key needed
+- **Notifications:** Pre-flight email reminders (24h + 2h before departure)
+- **Deployment:** Single Railway service — Express serves both API and built frontend
+
 
 ---
 
