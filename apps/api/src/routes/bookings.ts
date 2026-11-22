@@ -388,7 +388,7 @@ bookingsRouter.get(
         include: {
           passenger: true,
           ticket: true,
-          flight: { include: { origin: true, destination: true } },
+          flight: { include: { origin: true, destination: true, aircraft: true } },
           seat: true,
           payment: true,
         },
@@ -409,7 +409,24 @@ bookingsRouter.get(
       // Generate presigned PDF URL (null if S3 not configured)
       const pdfUrl = await presignGet(booking.ticket.pdfKey);
 
-      res.json({ ticket: booking.ticket, pdfUrl });
+      // Build full ticket payload the frontend ETicket component expects
+      const ticket = {
+        ...booking.ticket,
+        pnr: booking.pnr,
+        flight: {
+          flightNo: booking.flight.flightNo,
+          origin: booking.flight.origin,
+          destination: booking.flight.destination,
+          departAt: booking.flight.departAt,
+          arriveAt: booking.flight.arriveAt,
+          aircraft: { model: booking.flight.aircraft?.model ?? "" },
+        },
+        seat: { seatNo: booking.seat.seatNo, cabinClass: booking.seat.cabinClass },
+        passenger: { fullName: booking.passenger.fullName },
+        payment: booking.payment ? { amount: booking.payment.amount, method: booking.payment.method } : null,
+      };
+
+      res.json({ ticket, pdfUrl });
     } catch (err) {
       next(err);
     }
