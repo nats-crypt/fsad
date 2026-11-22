@@ -227,16 +227,35 @@ bookingsRouter.post(
         console.error("PDF generation/upload failed (non-fatal):", pdfErr);
       }
 
-      // Send booking confirmation email (non-fatal)
+      // Send booking confirmation email with PDF attachment (non-fatal)
       try {
         const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
         const flight = await prisma.flight.findUnique({
           where: { id: flightId },
           include: { origin: true, destination: true },
         });
-        if (user?.email && flight) {
+        const seat = await prisma.seat.findUnique({
+          where: { flightId_seatNo: { flightId, seatNo } },
+        });
+        const passenger = await prisma.passenger.findUnique({
+          where: { userId: req.user!.id },
+        });
+        if (user?.email && flight && seat) {
           const dep = flight.departAt.toLocaleString("en-IN", {
             timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short",
+          });
+          // Generate PDF in memory
+          const pdfBuffer = await renderTicketPdf({
+            pnr: result.booking.pnr,
+            flightNo: flight.flightNo,
+            origin: flight.origin.code,
+            destination: flight.destination.code,
+            departAt: flight.departAt,
+            arriveAt: flight.arriveAt,
+            passengerName: passenger?.fullName ?? user.email,
+            seatNo: seat.seatNo,
+            cabinClass: seat.cabinClass,
+            farePaid: Number(flight.baseFare),
           });
           await sendMail({
             to: user.email,
@@ -250,7 +269,7 @@ bookingsRouter.post(
     </div>
     <div style="padding:28px;">
       <h2 style="color:#b8972a;margin-top:0;">Booking Confirmed!</h2>
-      <p style="color:#a0aec0;">Your flight has been booked successfully.</p>
+      <p style="color:#a0aec0;">Your flight has been booked successfully. Your e-ticket is attached.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td>
             <td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${result.booking.pnr}</td></tr>
@@ -260,6 +279,8 @@ bookingsRouter.post(
             <td style="padding:8px 0;color:#e8dfc8;">${flight.origin.code} → ${flight.destination.code}</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Departure</td>
             <td style="padding:8px 0;color:#e8dfc8;">${dep} IST</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Seat</td>
+            <td style="padding:8px 0;color:#e8dfc8;">${seat.seatNo} (${seat.cabinClass})</td></tr>
       </table>
       <div style="background:#1a2535;border:1px solid #2a3a5c;border-radius:8px;padding:16px;margin-top:16px;">
         <p style="margin:0;color:#a0aec0;font-size:13px;">Please arrive at the airport at least 2 hours before departure. Have your PNR and a valid photo ID ready.</p>
@@ -268,6 +289,11 @@ bookingsRouter.post(
     </div>
   </div>
 </body></html>`,
+            attachments: [{
+              filename: `Horizon-Ticket-${result.booking.pnr}.pdf`,
+              content: pdfBuffer,
+              contentType: "application/pdf",
+            }],
           });
         }
       } catch (mailErr) {

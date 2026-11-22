@@ -14,13 +14,17 @@ export async function sendMail(opts: {
   to: string;
   subject: string;
   html: string;
+  attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
 }): Promise<boolean> {
   const transport = createTransport();
   if (!transport) return false;
   try {
     await transport.sendMail({
       from: `"Horizon Airways" <${process.env.GMAIL_USER}>`,
-      ...opts,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      attachments: opts.attachments,
     });
     return true;
   } catch (err) {
