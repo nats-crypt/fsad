@@ -8,6 +8,7 @@ import { getPaymentProvider } from "../payments/provider.js";
 import { genPnr } from "../lib/pnr.js";
 import { renderTicketPdf } from "../lib/ticket-pdf.js";
 import { putObject, presignGet, ticketKey } from "../lib/storage.js";
+import { sendMail } from "../lib/mailer.js";
 
 export const bookingsRouter = Router();
 
@@ -224,6 +225,53 @@ bookingsRouter.post(
       } catch (pdfErr) {
         // PDF generation/upload failure should not fail the booking
         console.error("PDF generation/upload failed (non-fatal):", pdfErr);
+      }
+
+      // Send booking confirmation email (non-fatal)
+      try {
+        const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+        const flight = await prisma.flight.findUnique({
+          where: { id: flightId },
+          include: { origin: true, destination: true },
+        });
+        if (user?.email && flight) {
+          const dep = flight.departAt.toLocaleString("en-IN", {
+            timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short",
+          });
+          await sendMail({
+            to: user.email,
+            subject: `Booking Confirmed — ${flight.flightNo} · PNR: ${result.booking.pnr}`,
+            html: `
+<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="font-family:Arial,sans-serif;background:#0a0f1e;color:#e8dfc8;margin:0;padding:24px;">
+  <div style="max-width:520px;margin:auto;background:#111827;border:1px solid #2a3a5c;border-radius:12px;overflow:hidden;">
+    <div style="background:#b8972a;padding:20px 28px;">
+      <h1 style="margin:0;font-size:22px;color:#0a0f1e;letter-spacing:2px;text-transform:uppercase;">✈ Horizon Airways</h1>
+    </div>
+    <div style="padding:28px;">
+      <h2 style="color:#b8972a;margin-top:0;">Booking Confirmed!</h2>
+      <p style="color:#a0aec0;">Your flight has been booked successfully.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td>
+            <td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${result.booking.pnr}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Flight</td>
+            <td style="padding:8px 0;color:#e8dfc8;">${flight.flightNo}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Route</td>
+            <td style="padding:8px 0;color:#e8dfc8;">${flight.origin.code} → ${flight.destination.code}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Departure</td>
+            <td style="padding:8px 0;color:#e8dfc8;">${dep} IST</td></tr>
+      </table>
+      <div style="background:#1a2535;border:1px solid #2a3a5c;border-radius:8px;padding:16px;margin-top:16px;">
+        <p style="margin:0;color:#a0aec0;font-size:13px;">Please arrive at the airport at least 2 hours before departure. Have your PNR and a valid photo ID ready.</p>
+      </div>
+      <p style="color:#a0aec0;font-size:12px;margin-top:24px;">Safe travels,<br/><strong style="color:#b8972a;">Horizon Airways Team</strong></p>
+    </div>
+  </div>
+</body></html>`,
+          });
+        }
+      } catch (mailErr) {
+        console.error("Booking confirmation email failed (non-fatal):", mailErr);
       }
 
       // Return the booking with related data
