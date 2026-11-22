@@ -1,9 +1,9 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install --omit=dev=false && npm run build:prod"
+buildCommand = "npm install --include=dev && npm run build:prod"
 
 [deploy]
-startCommand = "node apps/api/dist/server.js"
+startCommand = "node --import tsx/esm apps/api/src/server.ts"
 healthcheckPath = "/api/health"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

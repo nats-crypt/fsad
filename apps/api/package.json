@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
-    "build": "tsc --project tsconfig.json --skipLibCheck || true",
-    "start:prod": "node dist/server.js",
+    "build": "echo 'API uses tsx at runtime, no compile step needed'",
+    "start:prod": "node --import tsx/esm src/server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -28,6 +28,7 @@
     "pdfkit": "^0.21.0",
     "razorpay": "^2.9.8",
     "serverless-http": "^3.2.0",
+    "tsx": "^4.19.0",
     "ws": "^8.23.0",
     "zod": "^3.23.8"
   },
