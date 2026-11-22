@@ -220,7 +220,7 @@ export default function Booking() {
     );
   }
 
-  if (isError || !flight) {
+  if (isError || !flight || !flight.origin || !flight.destination) {
     return (
       <div className="min-h-screen hero-bg flex items-center justify-center">
         <div className="card p-8 text-center max-w-md">
