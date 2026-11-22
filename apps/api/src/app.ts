@@ -21,6 +21,7 @@ import { aiSearchRouter } from "./routes/ai-search.js";
 import { aiOptimizerRouter } from "./routes/ai-optimizer.js";
 import { aiFareRouter } from "./routes/ai-fare.js";
 import { aiRebookingRouter } from "./routes/ai-rebooking.js";
+import { flightStatusRouter } from "./routes/flight-status.js";
 
 export function createApp() {
   const app = express();
@@ -57,6 +58,9 @@ export function createApp() {
   app.use("/api/ai/optimizer", aiOptimizerRouter);
   app.use("/api/ai/fare-forecast", aiFareRouter);
   app.use("/api/ai/rebooking", aiRebookingRouter);
+
+  // Real-time flight status (AviationStack + DB fallback)
+  app.use("/api/flight-status", flightStatusRouter);
 
   // Serve the built frontend (single-process mode) when apps/web/dist exists.
   // Non-/api GET requests fall back to index.html for client-side routing.
