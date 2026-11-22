@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const { user: u } = await api.get<{ user: User }>('/auth/me');
+      const u = await api.get<User>('/auth/me');
       setUser(u);
     } catch {
       setUser(null);
