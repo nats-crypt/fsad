@@ -228,18 +228,18 @@ bookingsRouter.post(
       }
 
       // Fire-and-forget confirmation email — don't await, response goes back immediately
-      const userId = req.user!.id;
-      const pnr = result.booking.pnr;
+      const confirmPnr = result.booking.pnr;
+      const confirmUserId = req.user!.id;
       Promise.all([
-        prisma.user.findUnique({ where: { id: userId } }),
+        prisma.user.findUnique({ where: { id: confirmUserId } }),
         prisma.flight.findUnique({ where: { id: flightId }, include: { origin: true, destination: true } }),
         prisma.seat.findUnique({ where: { flightId_seatNo: { flightId, seatNo } } }),
-        prisma.passenger.findUnique({ where: { userId } }),
+        prisma.passenger.findUnique({ where: { userId: confirmUserId } }),
       ]).then(async ([user, flight, seat, passenger]) => {
         if (!user?.email || !flight || !seat) return;
         const dep = flight.departAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short" });
         const pdfBuffer = await renderTicketPdf({
-          pnr, flightNo: flight.flightNo,
+          pnr: confirmPnr, flightNo: flight.flightNo,
           origin: flight.origin.code, destination: flight.destination.code,
           departAt: flight.departAt, arriveAt: flight.arriveAt,
           passengerName: passenger?.fullName ?? user.email,
@@ -248,7 +248,7 @@ bookingsRouter.post(
         });
         await sendMail({
           to: user.email,
-          subject: `Booking Confirmed — ${flight.flightNo} · PNR: ${pnr}`,
+          subject: `Booking Confirmed — ${flight.flightNo} · PNR: ${confirmPnr}`,
           html: `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
 <body style="font-family:Arial,sans-serif;background:#0a0f1e;color:#e8dfc8;margin:0;padding:24px;">
   <div style="max-width:520px;margin:auto;background:#111827;border:1px solid #2a3a5c;border-radius:12px;overflow:hidden;">
@@ -259,7 +259,7 @@ bookingsRouter.post(
       <h2 style="color:#b8972a;margin-top:0;">Booking Confirmed!</h2>
       <p style="color:#a0aec0;">Your flight has been booked. Your e-ticket is attached as a PDF.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td><td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${pnr}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td><td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${confirmPnr}</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Flight</td><td style="padding:8px 0;color:#e8dfc8;">${flight.flightNo}</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Route</td><td style="padding:8px 0;color:#e8dfc8;">${flight.origin.code} → ${flight.destination.code}</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Departure</td><td style="padding:8px 0;color:#e8dfc8;">${dep} IST</td></tr>
@@ -269,7 +269,7 @@ bookingsRouter.post(
     </div>
   </div>
 </body></html>`,
-          attachments: [{ filename: `Horizon-Ticket-${pnr}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+          attachments: [{ filename: `Horizon-Ticket-${confirmPnr}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
         });
       }).catch(err => console.error("Confirmation email failed (non-fatal):", err));
 
