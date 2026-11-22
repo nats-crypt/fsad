@@ -22,6 +22,7 @@ import { aiOptimizerRouter } from "./routes/ai-optimizer.js";
 import { aiFareRouter } from "./routes/ai-fare.js";
 import { aiRebookingRouter } from "./routes/ai-rebooking.js";
 import { isMailConfigured, sendMail } from "./lib/mailer.js";
+import { flightStatusRouter } from "./routes/flight-status.js";
 
 export function createApp() {
   const app = express();
