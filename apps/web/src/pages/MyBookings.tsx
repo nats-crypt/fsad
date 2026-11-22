@@ -10,11 +10,14 @@ import {
   CheckCircle,
   Calendar,
   Plane,
+  MapPin,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import ETicket from '../components/ETicket';
+import FlightMap from '../components/FlightMap';
 import RebookingSuggestions from '../components/RebookingSuggestions';
 import { useToast } from '../components/Toast';
+import { AIRPORT_COORDS } from '../lib/airports';
 import type { Booking, Ticket as TicketType } from '../types';
 import { formatCurrency, formatDate, formatTime, cn } from '../lib/utils';
 
@@ -80,6 +83,7 @@ export default function MyBookings() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [viewTicketBookingId, setViewTicketBookingId] = useState<string | null>(null);
+  const [trackBookingId, setTrackBookingId] = useState<string | null>(null);
   const [cancelBooking, setCancelBooking] = useState<Booking | null>(null);
   const [recentlyCancelled, setRecentlyCancelled] = useState<string | null>(null);
 
@@ -255,6 +259,25 @@ export default function MyBookings() {
                       <Eye className="w-4 h-4" />
                       {viewTicketBookingId === booking.id ? 'Hide' : 'View'} Ticket
                     </button>
+                    {booking.flight?.flightNo &&
+                      AIRPORT_COORDS[booking.flight.origin?.code] &&
+                      AIRPORT_COORDS[booking.flight.destination?.code] && (
+                      <button
+                        type="button"
+                        className={cn(
+                          'btn-sm',
+                          trackBookingId === booking.id ? 'btn-primary' : 'btn-secondary',
+                        )}
+                        onClick={() =>
+                          setTrackBookingId(
+                            trackBookingId === booking.id ? null : booking.id,
+                          )
+                        }
+                      >
+                        <MapPin className="w-4 h-4" />
+                        {trackBookingId === booking.id ? 'Hide Map' : 'Track Flight'}
+                      </button>
+                    )}
                     <button
                       className="btn-danger btn-sm"
                       onClick={() => setCancelBooking(booking)}
@@ -270,6 +293,27 @@ export default function MyBookings() {
                   <div className="mt-4 pt-4 border-t border-sky-light/20">
                     <ETicket
                       ticket={{ ...ticketData.ticket, pdfUrl: ticketData.pdfUrl }}
+                    />
+                  </div>
+                )}
+
+                {/* Inline flight map */}
+                {trackBookingId === booking.id && booking.flight && (
+                  <div className="mt-4 pt-4 border-t border-sky-light/20 animate-fade-up">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-heading tracking-widest uppercase text-runway">
+                        Flight Path
+                      </p>
+                      <span className="text-xs text-runway/50 font-mono">
+                        {booking.flight.origin.code} → {booking.flight.destination.code}
+                      </span>
+                    </div>
+                    <FlightMap
+                      originCode={booking.flight.origin.code}
+                      destCode={booking.flight.destination.code}
+                      departAt={booking.flight.departAt}
+                      arriveAt={booking.flight.arriveAt}
+                      height={320}
                     />
                   </div>
                 )}

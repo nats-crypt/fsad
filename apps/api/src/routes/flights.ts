@@ -69,6 +69,46 @@ flightsRouter.get(
   }
 );
 
+/** GET /api/flights/board — all upcoming and currently in-flight Horizon flights */
+flightsRouter.get(
+  "/board",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const now = new Date();
+      const horizon = new Date(now.getTime() + 72 * 60 * 60 * 1000); // next 72 h
+
+      const flights = await prisma.flight.findMany({
+        where: {
+          status: { in: ["SCHEDULED", "DEPARTED"] },
+          departAt: { lte: horizon },
+          arriveAt: { gte: now }, // not yet landed
+        },
+        include: { origin: true, destination: true, aircraft: true },
+        orderBy: { departAt: "asc" },
+      });
+
+      res.json(
+        flights.map((f) => ({
+          id: f.id,
+          flightNo: f.flightNo,
+          origin: { code: f.origin.code, city: f.origin.city, name: f.origin.name },
+          destination: { code: f.destination.code, city: f.destination.city, name: f.destination.name },
+          departAt: f.departAt,
+          arriveAt: f.arriveAt,
+          baseFare: Number(f.baseFare),
+          capacity: f.capacity,
+          seatsBooked: f.seatsBooked,
+          seatsLeft: f.capacity - f.seatsBooked,
+          status: f.status,
+          aircraft: { model: f.aircraft.model, registration: f.aircraft.registration },
+        }))
+      );
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /** GET /api/flights/:id — includes seat map */
 flightsRouter.get(
   "/:id",
