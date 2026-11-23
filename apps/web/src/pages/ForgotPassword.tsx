@@ -2,15 +2,25 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Loader2, Plane, AlertCircle, CheckCircle } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
+import { cn } from '../lib/utils';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
 
+  function emailError() {
+    if (!email.trim()) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email address';
+    return '';
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    setEmailTouched(true);
+    if (emailError()) return;
     setError('');
     setLoading(true);
     try {
@@ -66,14 +76,27 @@ export default function ForgotPassword() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} noValidate className="space-y-4">
                 <div>
                   <label className="label" htmlFor="email">Email Address</label>
                   <div className="input-group">
-                    <Mail className="input-icon w-4 h-4" />
-                    <input id="email" type="email" className="input" placeholder="you@example.com"
-                      value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
+                    <Mail className={cn('input-icon w-4 h-4', emailTouched && emailError() && 'text-ember')} />
+                    <input
+                      id="email"
+                      type="email"
+                      className={cn('input', emailTouched && emailError() && 'border-ember/60 focus:border-ember')}
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      onBlur={() => setEmailTouched(true)}
+                      autoComplete="email"
+                    />
                   </div>
+                  {emailTouched && emailError() && (
+                    <p className="text-xs text-ember mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{emailError()}
+                    </p>
+                  )}
                 </div>
                 <button type="submit" className="btn-primary w-full btn-lg mt-2" disabled={loading}>
                   {loading ? <><Loader2 className="w-5 h-5 animate-spin" />Sending…</> : 'Send Reset Link'}

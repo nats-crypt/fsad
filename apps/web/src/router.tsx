@@ -10,6 +10,7 @@ import Booking from './pages/Booking';
 import Confirmation from './pages/Confirmation';
 import MyBookings from './pages/MyBookings';
 import Profile from './pages/Profile';
+import PolicyPage from './pages/PolicyPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AircraftAdmin from './pages/admin/AircraftAdmin';
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      { path: 'policy/:slug', element: <PolicyPage /> },
     ],
   },
   {

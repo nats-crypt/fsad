@@ -326,15 +326,21 @@ export function Footer() {
               Support
             </h4>
             <ul className="space-y-2">
-              {['Contact Us', 'Baggage Policy', 'Refund Policy', 'Privacy'].map(
-                l => (
-                  <li key={l}>
-                    <span className="text-sm text-runway/70 cursor-not-allowed select-none">
-                      {l}
-                    </span>
-                  </li>
-                ),
-              )}
+              {[
+                { to: '/policy/contact', label: 'Contact Us' },
+                { to: '/policy/baggage', label: 'Baggage Policy' },
+                { to: '/policy/refund', label: 'Refund Policy' },
+                { to: '/policy/privacy', label: 'Privacy' },
+              ].map(l => (
+                <li key={l.to}>
+                  <Link
+                    to={l.to}
+                    className="text-sm text-runway/70 hover:text-cloud transition-colors"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { ZodError } from "zod";
+import { Prisma } from "@prisma/client";
 import { HttpError } from "./lib/http-error.js";
 import { authRouter } from "./routes/auth.js";
 import { flightsRouter } from "./routes/flights.js";
@@ -102,7 +103,29 @@ export function createApp() {
       res.status(400).json({ message: "Validation error", issues: err.issues });
       return;
     }
-    console.error(err);
+    // Prisma: record not found → 404
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      res.status(404).json({ message: "Record not found" });
+      return;
+    }
+    // Prisma: unique constraint violated → 409
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const field = (err.meta?.target as string[] | undefined)?.join(", ") ?? "field";
+      res.status(409).json({ message: `Duplicate value for ${field}` });
+      return;
+    }
+    // Prisma: FK constraint (related record missing) → 422
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      res.status(422).json({ message: "Related record not found" });
+      return;
+    }
+    // Prisma connection / query failures
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error("[Prisma]", err.code, err.message);
+      res.status(500).json({ message: "Database error" });
+      return;
+    }
+    console.error("[Unhandled]", err);
     res.status(500).json({ message: "Internal server error" });
   });
 
