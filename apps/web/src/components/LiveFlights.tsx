@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Globe, Plane, Loader2, Search as SearchIcon, Clock, ArrowRight, Info } from 'lucide-react';
 import { api } from '../lib/api';
+import { todayIST, dateIST } from '../lib/utils';
 
 interface LiveFlight {
   airlines: string[];
@@ -35,9 +36,11 @@ const sym = (c: string) => (c === 'INR' ? '₹' : c === 'USD' ? '$' : '');
 export default function LiveFlights() {
   const [departureId, setDepartureId] = useState('DEL');
   const [arrivalId, setArrivalId] = useState('BOM');
-  const [date, setDate] = useState(
-    new Date(Date.now() + 86400000).toISOString().split('T')[0],
-  );
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return dateIST(d);
+  });
 
   const live = useMutation({
     mutationFn: () => {
@@ -95,7 +98,7 @@ export default function LiveFlights() {
               type="date"
               className="input pl-11"
               value={date}
-              min={new Date().toISOString().split('T')[0]}
+              min={todayIST()}
               onChange={e => setDate(e.target.value)}
             />
           </div>

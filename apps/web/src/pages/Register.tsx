@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { ApiError } from '../lib/api';
+import { todayIST } from '../lib/utils';
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
@@ -147,7 +148,7 @@ export default function Register() {
                       <Calendar className="input-icon w-4 h-4" />
                       <input id="dob" type="date" className="input pl-11"
                         value={dob} onChange={e => setDob(e.target.value)}
-                        max={new Date().toISOString().split('T')[0]} />
+                        max={todayIST()} />
                     </div>
                   </div>
                   <div>

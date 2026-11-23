@@ -24,7 +24,7 @@ export const llmProvider: AiProvider = {
 }
 Return ONLY the JSON object, no markdown, no explanation.
 Indian airport IATA codes: Delhi=DEL, Mumbai=BOM, Bengaluru=BLR, Hyderabad=HYD, Chennai=MAA, Kolkata=CCU.
-Relative date rules (today is ${new Date().toISOString().slice(0, 10)}):
+Relative date rules (today is ${new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10)} IST):
 - "today" → today's date
 - "tomorrow" → tomorrow's date
 - "next <weekday>" → that weekday in the next 7 days

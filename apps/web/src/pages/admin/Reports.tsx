@@ -5,7 +5,7 @@ import { BarChart3, Download, Loader2, AlertCircle, Calendar } from 'lucide-reac
 import { api } from '../../lib/api';
 import ReportChart from '../../components/ReportChart';
 import type { Report, ReportType } from '../../types';
-import { downloadCSV, formatCurrency } from '../../lib/utils';
+import { downloadCSV, formatCurrency, todayIST, dateIST } from '../../lib/utils';
 
 const REPORT_TYPES: { value: ReportType; label: string; prefix?: string; chartType?: 'bar' | 'line' | 'area' }[] = [
   { value: 'revenue', label: 'Revenue', prefix: '₹', chartType: 'area' },
@@ -27,9 +27,9 @@ export default function Reports() {
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
-    return d.toISOString().split('T')[0];
+    return dateIST(d);
   });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(() => todayIST());
 
   const { data, isLoading, isError } = useQuery<Report>({
     queryKey: ['report', reportType, dateFrom, dateTo],

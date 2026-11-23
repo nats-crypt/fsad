@@ -4,7 +4,7 @@ import { Clock, LogIn, LogOut, Calendar, Loader2 } from 'lucide-react';
 import { api, ApiError } from '../../lib/api';
 import DataTable from '../../components/DataTable';
 import { useToast } from '../../components/Toast';
-import { formatDateTime } from '../../lib/utils';
+import { formatDateTime, todayIST, dateIST } from '../../lib/utils';
 import type { Employee, AttendanceRecord } from '../../types';
 
 export default function Attendance() {
@@ -14,9 +14,9 @@ export default function Attendance() {
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
-    return d.toISOString().split('T')[0];
+    return dateIST(d);
   });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(() => todayIST());
 
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ['employees'],

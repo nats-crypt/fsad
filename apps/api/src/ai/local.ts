@@ -11,20 +11,27 @@ const WEEKDAYS = [
   "saturday",
 ];
 
+/** Returns a Date as YYYY-MM-DD in IST (UTC+5:30) */
 function dateToISO(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return new Date(d.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** Returns today's date as YYYY-MM-DD in IST */
+function todayIST(): Date {
+  // Shift now by IST offset so getDate/getMonth work as IST calendar
+  return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
 }
 
 /** Returns the Date of the next occurrence of the named weekday (1–7 days ahead). */
 function nextOccurrenceOfWeekday(dayName: string): Date {
   const target = WEEKDAYS.indexOf(dayName.toLowerCase());
-  if (target === -1) return new Date();
-  const today = new Date();
-  const current = today.getDay(); // 0=Sun … 6=Sat
+  if (target === -1) return todayIST();
+  const today = todayIST();
+  const current = today.getUTCDay(); // shifted date — use getUTCDay since we shifted manually
   let daysAhead = target - current;
   if (daysAhead <= 0) daysAhead += 7;
   const result = new Date(today);
-  result.setDate(today.getDate() + daysAhead);
+  result.setUTCDate(today.getUTCDate() + daysAhead);
   return result;
 }
 
@@ -32,13 +39,13 @@ function parseDateHints(text: string): Pick<ParsedSearch, "dateFrom" | "dateTo">
   const lower = text.toLowerCase();
 
   if (lower.includes("today")) {
-    const iso = dateToISO(new Date());
+    const iso = dateToISO(todayIST());
     return { dateFrom: iso, dateTo: iso };
   }
 
   if (lower.includes("tomorrow")) {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
+    const d = todayIST();
+    d.setUTCDate(d.getUTCDate() + 1);
     const iso = dateToISO(d);
     return { dateFrom: iso, dateTo: iso };
   }
@@ -46,7 +53,7 @@ function parseDateHints(text: string): Pick<ParsedSearch, "dateFrom" | "dateTo">
   if (lower.includes("this weekend") || lower.includes("weekend")) {
     const sat = nextOccurrenceOfWeekday("saturday");
     const sun = new Date(sat);
-    sun.setDate(sat.getDate() + 1);
+    sun.setUTCDate(sat.getUTCDate() + 1);
     return { dateFrom: dateToISO(sat), dateTo: dateToISO(sun) };
   }
 

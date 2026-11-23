@@ -1,6 +1,16 @@
 import { clsx } from 'clsx';
 import type { ClassValue } from 'clsx';
 
+/** Returns today's date as YYYY-MM-DD in IST (UTC+5:30) */
+export function todayIST(): string {
+  return dateIST(new Date());
+}
+
+/** Returns any Date as YYYY-MM-DD in IST (UTC+5:30) */
+export function dateIST(d: Date): string {
+  return new Date(d.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }

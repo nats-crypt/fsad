@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { todayIST } from '../lib/utils';
 
 interface PassengerProfile {
   id: string;
@@ -217,7 +218,7 @@ export default function Profile() {
                     <Calendar className="input-icon w-4 h-4" />
                     <input className="input pl-11" type="date"
                       value={dob} onChange={(e) => setDob(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]} />
+                      max={todayIST()} />
                   </div>
                 </div>
                 <div>

@@ -17,7 +17,7 @@ import { api } from '../lib/api';
 import FlightCard from '../components/FlightCard';
 import LiveFlights from '../components/LiveFlights';
 import type { Flight, ParsedSearch } from '../types';
-import { cn } from '../lib/utils';
+import { cn, todayIST, dateIST } from '../lib/utils';
 
 const AIRPORTS = [
   { code: 'DEL', city: 'Delhi' },
@@ -37,7 +37,7 @@ export default function Search() {
   // Classic form state
   const [origin, setOrigin] = useState(sp.get('origin') ?? '');
   const [destination, setDestination] = useState(sp.get('destination') ?? '');
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayIST();
   const [date, setDate] = useState(() => {
     const d = sp.get('date') ?? today;
     return d < today ? today : d;

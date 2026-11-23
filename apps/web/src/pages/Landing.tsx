@@ -11,7 +11,7 @@ import {
   Search,
   Zap,
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, dateIST, todayIST } from '../lib/utils';
 
 const FEATURED_ROUTES = [
   { from: 'DEL', fromCity: 'Delhi', to: 'BOM', toCity: 'Mumbai', price: 3999, duration: '2h 10m' },
@@ -33,7 +33,7 @@ export default function Landing() {
   const [date, setDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return dateIST(d);
   });
   const [pax, setPax] = useState(1);
 
@@ -239,7 +239,7 @@ export default function Landing() {
                         type="date"
                         className="input pl-11"
                         value={date}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={todayIST()}
                         onChange={e => setDate(e.target.value)}
                       />
                     </div>
