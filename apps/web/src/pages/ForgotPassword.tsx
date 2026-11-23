@@ -7,20 +7,15 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [token, setToken] = useState(''); // dev mode: token returned directly
+  const [sent, setSent] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await api.post<{ message: string; resetToken?: string }>(
-        '/auth/forgot-password',
-        { email },
-      );
-      // In dev mode the API returns the raw token so we can test without email
-      if (res.resetToken) setToken(res.resetToken);
-      else setToken('sent'); // production path: email was sent
+      await api.post<{ message: string }>('/auth/forgot-password', { email });
+      setSent(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
     } finally {
@@ -49,28 +44,18 @@ export default function ForgotPassword() {
             Enter your email and we'll send you a link to reset your password.
           </p>
 
-          {token ? (
+          {sent ? (
             <div className="space-y-4">
               <div className="flex items-start gap-3 bg-jade/10 border border-jade/30 rounded-lg px-4 py-3">
                 <CheckCircle className="w-4 h-4 text-jade flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-jade">
-                  {token === 'sent'
-                    ? 'Check your inbox — a reset link has been sent.'
-                    : 'Reset token generated (dev mode — in production this would be emailed).'}
-                </p>
-              </div>
-              {token !== 'sent' && (
-                <div className="p-3 rounded-lg bg-sky-mid/40 border border-sky-light/20">
-                  <p className="text-xs text-runway mb-1 font-heading tracking-wider uppercase">Dev — Reset Token</p>
-                  <p className="text-xs font-mono text-cloud break-all">{token}</p>
-                  <Link
-                    to={`/reset-password?token=${token}`}
-                    className="btn-primary w-full text-center mt-3 inline-flex justify-center"
-                  >
-                    Continue to Reset Password
-                  </Link>
+                <div>
+                  <p className="text-sm text-jade font-semibold">Check your inbox</p>
+                  <p className="text-sm text-jade/80 mt-0.5">
+                    A password reset link has been sent to <strong>{email}</strong>. It expires in 15 minutes.
+                  </p>
                 </div>
-              )}
+              </div>
+              <Link to="/login" className="btn-ghost w-full text-center mt-2">Back to Sign In</Link>
             </div>
           ) : (
             <>

@@ -73,6 +73,27 @@ function flightEmailHtml(opts: {
 // since the cron job runs in the same process and duplicates are low-risk.
 const notified = new Set<string>();
 
+/** Advance flight statuses based on current time */
+async function runFlightStatusUpdates() {
+  const now = new Date();
+
+  // SCHEDULED → DEPARTED: departAt has passed
+  const departed = await prisma.flight.updateMany({
+    where: { status: "SCHEDULED", departAt: { lte: now } },
+    data: { status: "DEPARTED" },
+  });
+
+  // DEPARTED → ARRIVED: arriveAt has passed
+  const arrived = await prisma.flight.updateMany({
+    where: { status: "DEPARTED", arriveAt: { lte: now } },
+    data: { status: "ARRIVED" },
+  });
+
+  if (departed.count > 0 || arrived.count > 0) {
+    console.log(`[flights] status updated — departed: ${departed.count}, arrived: ${arrived.count}`);
+  }
+}
+
 async function runNotifications() {
   const now = new Date();
 
@@ -157,15 +178,27 @@ export function startNotificationScheduler() {
   }
   // Dynamic import to keep cron out of test environments
   import("node-cron").then(({ default: cron }) => {
-    // Run every 15 minutes
+    // Advance flight statuses every minute
+    cron.schedule("* * * * *", () => {
+      runFlightStatusUpdates().catch(err =>
+        console.error("[flights] status update error:", err)
+      );
+    });
+
+    // Send pre-flight reminders every 15 minutes
     cron.schedule("*/15 * * * *", () => {
       runNotifications().catch(err =>
         console.error("[notifications] scheduler error:", err)
       );
     });
-    console.log("[notifications] scheduler started (every 15 min)");
+
+    console.log("[notifications] scheduler started (reminders every 15 min, status every 1 min)");
+
     // Delay first run by 5s to let DB connections settle
     setTimeout(() => {
+      runFlightStatusUpdates().catch(err =>
+        console.error("[flights] initial status update error:", err)
+      );
       runNotifications().catch(err =>
         console.error("[notifications] initial run error:", err)
       );

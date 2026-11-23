@@ -7,6 +7,7 @@ import { signToken, requireAuth } from "../lib/auth.js";
 import { validate } from "../lib/validate.js";
 import { HttpError } from "../lib/http-error.js";
 import { encrypt, decrypt } from "../lib/crypto.js";
+import { sendMail } from "../lib/mailer.js";
 
 export const authRouter = Router();
 
@@ -239,7 +240,7 @@ authRouter.post(
 
 const forgotSchema = z.object({ email: z.string().email() });
 
-/** POST /api/auth/forgot-password — generates a reset token (shown in response for demo; in prod, email it) */
+/** POST /api/auth/forgot-password */
 authRouter.post(
   "/forgot-password",
   validate(forgotSchema),
@@ -250,7 +251,7 @@ authRouter.post(
 
       // Always respond 200 to avoid email enumeration
       if (!user) {
-        res.json({ message: "If that email exists, a reset token has been generated." });
+        res.json({ message: "If that email exists, a reset link has been sent." });
         return;
       }
 
@@ -268,12 +269,51 @@ authRouter.post(
         data: { userId: user.id, tokenHash, expiresAt },
       });
 
-      // In production this would be emailed. For demo/dev we return it directly.
-      res.json({
-        message: "Reset token generated. In production this would be emailed.",
-        resetToken: rawToken,
-        expiresIn: "15 minutes",
-      });
+      const clientUrl = process.env.CLIENT_URL ?? "http://localhost:5173";
+      const resetLink = `${clientUrl}/reset-password?token=${rawToken}`;
+
+      // Send reset email (fire-and-forget — always respond 200)
+      sendMail({
+        to: email,
+        subject: "Reset your Horizon Airways password",
+        html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="font-family:Arial,sans-serif;background:#0a0f1e;color:#e8dfc8;margin:0;padding:24px;">
+  <div style="max-width:520px;margin:auto;background:#111827;border:1px solid #2a3a5c;border-radius:12px;overflow:hidden;">
+    <div style="background:#b8972a;padding:20px 28px;">
+      <h1 style="margin:0;font-size:22px;color:#0a0f1e;letter-spacing:2px;text-transform:uppercase;">
+        ✈ Horizon Airways
+      </h1>
+    </div>
+    <div style="padding:28px;">
+      <h2 style="color:#b8972a;margin-top:0;">Password Reset Request</h2>
+      <p style="color:#a0aec0;">We received a request to reset the password for your Horizon Airways account.</p>
+      <p style="color:#a0aec0;">Click the button below to set a new password. This link expires in <strong style="color:#e8dfc8;">15 minutes</strong>.</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${resetLink}"
+           style="background:#b8972a;color:#0a0f1e;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;letter-spacing:1px;text-transform:uppercase;display:inline-block;">
+          Reset Password
+        </a>
+      </div>
+      <p style="color:#a0aec0;font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
+      <div style="background:#1a2535;border:1px solid #2a3a5c;border-radius:8px;padding:12px 16px;margin-top:16px;">
+        <p style="margin:0;color:#a0aec0;font-size:12px;">Or copy this link:<br/>
+          <span style="color:#b8972a;word-break:break-all;font-size:11px;">${resetLink}</span>
+        </p>
+      </div>
+      <p style="color:#a0aec0;font-size:12px;margin-top:24px;">
+        Safe travels,<br/>
+        <strong style="color:#b8972a;">Horizon Airways Team</strong>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`,
+      }).catch(err => console.error("[auth] reset email failed:", err));
+
+      res.json({ message: "If that email exists, a reset link has been sent." });
     } catch (err) {
       next(err);
     }
