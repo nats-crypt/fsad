@@ -44,58 +44,59 @@ type RouteSpec = {
   flightNoBase: string;
   origin: string;
   dest: string;
-  departHour: number;
+  departHours: number[];      // [morning, afternoon, evening]
+  fareMultipliers: number[];  // per slot: [1, 1.08, 1.05]
   durationMin: number;
   baseFare: number;
-  aircraftIdx: number; // index into aircraft array
+  aircraftIdx: number;
 };
 
 const ROUTES: RouteSpec[] = [
   // DEL ↔ BOM
-  { flightNoBase: "HA101", origin: "DEL", dest: "BOM", departHour:  6, durationMin: 120, baseFare: 4500, aircraftIdx: 0 },
-  { flightNoBase: "HA102", origin: "BOM", dest: "DEL", departHour: 10, durationMin: 120, baseFare: 4500, aircraftIdx: 1 },
+  { flightNoBase: "HA101", origin: "DEL", dest: "BOM", departHours: [ 6, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 120, baseFare: 4500, aircraftIdx: 0 },
+  { flightNoBase: "HA102", origin: "BOM", dest: "DEL", departHours: [ 7, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin: 120, baseFare: 4500, aircraftIdx: 1 },
   // DEL ↔ BLR
-  { flightNoBase: "HA201", origin: "DEL", dest: "BLR", departHour:  7, durationMin: 165, baseFare: 5200, aircraftIdx: 2 },
-  { flightNoBase: "HA202", origin: "BLR", dest: "DEL", departHour: 14, durationMin: 165, baseFare: 5200, aircraftIdx: 3 },
+  { flightNoBase: "HA201", origin: "DEL", dest: "BLR", departHours: [ 6, 12, 17], fareMultipliers: [1, 1.08, 1.05], durationMin: 165, baseFare: 5200, aircraftIdx: 2 },
+  { flightNoBase: "HA202", origin: "BLR", dest: "DEL", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 165, baseFare: 5200, aircraftIdx: 3 },
   // DEL ↔ MAA
-  { flightNoBase: "HA301", origin: "DEL", dest: "MAA", departHour:  8, durationMin: 175, baseFare: 5500, aircraftIdx: 4 },
-  { flightNoBase: "HA302", origin: "MAA", dest: "DEL", departHour: 15, durationMin: 175, baseFare: 5500, aircraftIdx: 4 },
+  { flightNoBase: "HA301", origin: "DEL", dest: "MAA", departHours: [ 6, 12, 17], fareMultipliers: [1, 1.08, 1.05], durationMin: 175, baseFare: 5500, aircraftIdx: 4 },
+  { flightNoBase: "HA302", origin: "MAA", dest: "DEL", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 175, baseFare: 5500, aircraftIdx: 4 },
   // DEL ↔ HYD
-  { flightNoBase: "HA303", origin: "DEL", dest: "HYD", departHour:  9, durationMin: 155, baseFare: 5000, aircraftIdx: 2 },
-  { flightNoBase: "HA304", origin: "HYD", dest: "DEL", departHour: 16, durationMin: 155, baseFare: 5000, aircraftIdx: 3 },
+  { flightNoBase: "HA303", origin: "DEL", dest: "HYD", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 155, baseFare: 5000, aircraftIdx: 2 },
+  { flightNoBase: "HA304", origin: "HYD", dest: "DEL", departHours: [ 8, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin: 155, baseFare: 5000, aircraftIdx: 3 },
   // DEL ↔ CCU
-  { flightNoBase: "HA501", origin: "DEL", dest: "CCU", departHour:  7, durationMin: 135, baseFare: 4800, aircraftIdx: 0 },
-  { flightNoBase: "HA502", origin: "CCU", dest: "DEL", departHour: 13, durationMin: 135, baseFare: 4800, aircraftIdx: 1 },
+  { flightNoBase: "HA501", origin: "DEL", dest: "CCU", departHours: [ 6, 12, 17], fareMultipliers: [1, 1.08, 1.05], durationMin: 135, baseFare: 4800, aircraftIdx: 0 },
+  { flightNoBase: "HA502", origin: "CCU", dest: "DEL", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 135, baseFare: 4800, aircraftIdx: 1 },
   // BOM ↔ BLR
-  { flightNoBase: "HA401", origin: "BOM", dest: "BLR", departHour:  9, durationMin:  85, baseFare: 3200, aircraftIdx: 2 },
-  { flightNoBase: "HA402", origin: "BLR", dest: "BOM", departHour: 12, durationMin:  85, baseFare: 3200, aircraftIdx: 3 },
+  { flightNoBase: "HA401", origin: "BOM", dest: "BLR", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin:  85, baseFare: 3200, aircraftIdx: 2 },
+  { flightNoBase: "HA402", origin: "BLR", dest: "BOM", departHours: [ 8, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin:  85, baseFare: 3200, aircraftIdx: 3 },
   // BOM ↔ HYD
-  { flightNoBase: "HA601", origin: "BOM", dest: "HYD", departHour: 11, durationMin:  80, baseFare: 3000, aircraftIdx: 5 },
-  { flightNoBase: "HA602", origin: "HYD", dest: "BOM", departHour: 14, durationMin:  80, baseFare: 3000, aircraftIdx: 5 },
+  { flightNoBase: "HA601", origin: "BOM", dest: "HYD", departHours: [ 8, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin:  80, baseFare: 3000, aircraftIdx: 5 },
+  { flightNoBase: "HA602", origin: "HYD", dest: "BOM", departHours: [ 9, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin:  80, baseFare: 3000, aircraftIdx: 5 },
   // BOM ↔ MAA
-  { flightNoBase: "HA701", origin: "BOM", dest: "MAA", departHour: 10, durationMin: 110, baseFare: 3800, aircraftIdx: 0 },
-  { flightNoBase: "HA702", origin: "MAA", dest: "BOM", departHour: 15, durationMin: 110, baseFare: 3800, aircraftIdx: 1 },
+  { flightNoBase: "HA701", origin: "BOM", dest: "MAA", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 110, baseFare: 3800, aircraftIdx: 0 },
+  { flightNoBase: "HA702", origin: "MAA", dest: "BOM", departHours: [ 8, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin: 110, baseFare: 3800, aircraftIdx: 1 },
   // BOM ↔ CCU
-  { flightNoBase: "HA703", origin: "BOM", dest: "CCU", departHour:  8, durationMin: 155, baseFare: 5100, aircraftIdx: 4 },
-  { flightNoBase: "HA704", origin: "CCU", dest: "BOM", departHour: 14, durationMin: 155, baseFare: 5100, aircraftIdx: 4 },
+  { flightNoBase: "HA703", origin: "BOM", dest: "CCU", departHours: [ 6, 12, 17], fareMultipliers: [1, 1.08, 1.05], durationMin: 155, baseFare: 5100, aircraftIdx: 4 },
+  { flightNoBase: "HA704", origin: "CCU", dest: "BOM", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 155, baseFare: 5100, aircraftIdx: 4 },
   // BLR ↔ HYD
-  { flightNoBase: "HA801", origin: "BLR", dest: "HYD", departHour: 11, durationMin:  60, baseFare: 2500, aircraftIdx: 5 },
-  { flightNoBase: "HA802", origin: "HYD", dest: "BLR", departHour: 13, durationMin:  60, baseFare: 2500, aircraftIdx: 5 },
+  { flightNoBase: "HA801", origin: "BLR", dest: "HYD", departHours: [ 8, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin:  60, baseFare: 2500, aircraftIdx: 5 },
+  { flightNoBase: "HA802", origin: "HYD", dest: "BLR", departHours: [ 9, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin:  60, baseFare: 2500, aircraftIdx: 5 },
   // BLR ↔ MAA
-  { flightNoBase: "HA803", origin: "BLR", dest: "MAA", departHour:  7, durationMin:  65, baseFare: 2600, aircraftIdx: 5 },
-  { flightNoBase: "HA804", origin: "MAA", dest: "BLR", departHour: 10, durationMin:  65, baseFare: 2600, aircraftIdx: 5 },
+  { flightNoBase: "HA803", origin: "BLR", dest: "MAA", departHours: [ 7, 12, 17], fareMultipliers: [1, 1.08, 1.05], durationMin:  65, baseFare: 2600, aircraftIdx: 5 },
+  { flightNoBase: "HA804", origin: "MAA", dest: "BLR", departHours: [ 8, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin:  65, baseFare: 2600, aircraftIdx: 5 },
   // BLR ↔ CCU
-  { flightNoBase: "HA805", origin: "BLR", dest: "CCU", departHour:  9, durationMin: 190, baseFare: 5800, aircraftIdx: 2 },
-  { flightNoBase: "HA806", origin: "CCU", dest: "BLR", departHour: 16, durationMin: 190, baseFare: 5800, aircraftIdx: 3 },
+  { flightNoBase: "HA805", origin: "BLR", dest: "CCU", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 190, baseFare: 5800, aircraftIdx: 2 },
+  { flightNoBase: "HA806", origin: "CCU", dest: "BLR", departHours: [ 8, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin: 190, baseFare: 5800, aircraftIdx: 3 },
   // HYD ↔ MAA
-  { flightNoBase: "HA901", origin: "HYD", dest: "MAA", departHour:  8, durationMin:  70, baseFare: 2800, aircraftIdx: 5 },
-  { flightNoBase: "HA902", origin: "MAA", dest: "HYD", departHour: 11, durationMin:  70, baseFare: 2800, aircraftIdx: 5 },
+  { flightNoBase: "HA901", origin: "HYD", dest: "MAA", departHours: [ 7, 12, 17], fareMultipliers: [1, 1.08, 1.05], durationMin:  70, baseFare: 2800, aircraftIdx: 5 },
+  { flightNoBase: "HA902", origin: "MAA", dest: "HYD", departHours: [ 8, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin:  70, baseFare: 2800, aircraftIdx: 5 },
   // HYD ↔ CCU
-  { flightNoBase: "HA903", origin: "HYD", dest: "CCU", departHour: 10, durationMin: 170, baseFare: 5300, aircraftIdx: 0 },
-  { flightNoBase: "HA904", origin: "CCU", dest: "HYD", departHour: 15, durationMin: 170, baseFare: 5300, aircraftIdx: 1 },
+  { flightNoBase: "HA903", origin: "HYD", dest: "CCU", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 170, baseFare: 5300, aircraftIdx: 0 },
+  { flightNoBase: "HA904", origin: "CCU", dest: "HYD", departHours: [ 8, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin: 170, baseFare: 5300, aircraftIdx: 1 },
   // MAA ↔ CCU
-  { flightNoBase: "HA905", origin: "MAA", dest: "CCU", departHour:  9, durationMin: 150, baseFare: 4900, aircraftIdx: 4 },
-  { flightNoBase: "HA906", origin: "CCU", dest: "MAA", departHour: 14, durationMin: 150, baseFare: 4900, aircraftIdx: 4 },
+  { flightNoBase: "HA905", origin: "MAA", dest: "CCU", departHours: [ 7, 13, 18], fareMultipliers: [1, 1.08, 1.05], durationMin: 150, baseFare: 4900, aircraftIdx: 4 },
+  { flightNoBase: "HA906", origin: "CCU", dest: "MAA", departHours: [ 8, 14, 19], fareMultipliers: [1, 1.08, 1.05], durationMin: 150, baseFare: 4900, aircraftIdx: 4 },
 ];
 
 // ── 4. Employees ──────────────────────────────────────────────────────────────
@@ -220,11 +221,13 @@ async function main() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Every route runs every day for the next 14 days
-  const flightSchedule: Array<{ route: RouteSpec; dayOffset: number }> = [];
+  // Every route runs 3x daily for the next 14 days
+  const flightSchedule: Array<{ route: RouteSpec; dayOffset: number; slotIdx: number }> = [];
   for (const route of ROUTES) {
     for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
-      flightSchedule.push({ route, dayOffset });
+      for (let slotIdx = 0; slotIdx < route.departHours.length; slotIdx++) {
+        flightSchedule.push({ route, dayOffset, slotIdx });
+      }
     }
   }
 
@@ -235,27 +238,29 @@ async function main() {
   const cabinCrew = allEmployees.filter((e) => e.designation === "Cabin Crew");
 
   // Build all desired flights in memory
+  const SLOT_SUFFIX = ["A", "B", "C"];
   type FlightSpec = {
     flightNo: string; originId: string; destinationId: string; aircraftId: string;
     departAt: Date; arriveAt: Date; baseFare: number; capacity: number;
-    aircraftIdx: number; dayOffset: number;
+    aircraftIdx: number; dayOffset: number; slotIdx: number;
   };
   const desired: FlightSpec[] = [];
-  for (const { route, dayOffset } of flightSchedule) {
+  for (const { route, dayOffset, slotIdx } of flightSchedule) {
     const originAp = airportByCode[route.origin];
     const destAp = airportByCode[route.dest];
     const ac = aircraftList[route.aircraftIdx % aircraftList.length];
     if (!originAp || !destAp || !ac) continue;
     const departAt = new Date(today);
     departAt.setDate(today.getDate() + dayOffset);
-    departAt.setHours(route.departHour, 0, 0, 0);
+    departAt.setHours(route.departHours[slotIdx], 0, 0, 0);
     const arriveAt = new Date(departAt.getTime() + route.durationMin * 60 * 1000);
     const dateStr = departAt.toISOString().slice(0, 10).replace(/-/g, "");
+    const fare = Math.round(route.baseFare * route.fareMultipliers[slotIdx]);
     desired.push({
-      flightNo: `${route.flightNoBase}-${dateStr}`,
+      flightNo: `${route.flightNoBase}${SLOT_SUFFIX[slotIdx]}-${dateStr}`,
       originId: originAp.id, destinationId: destAp.id, aircraftId: ac.id,
-      departAt, arriveAt, baseFare: route.baseFare, capacity: ac.capacity,
-      aircraftIdx: route.aircraftIdx, dayOffset,
+      departAt, arriveAt, baseFare: fare, capacity: ac.capacity,
+      aircraftIdx: route.aircraftIdx, dayOffset, slotIdx,
     });
   }
 
@@ -305,11 +310,12 @@ async function main() {
   for (const spec of desired) {
     const flight = flightByNo[spec.flightNo];
     if (!flight) continue;
+    const rot = spec.dayOffset * 3 + spec.slotIdx;
     const crew = [
-      { emp: pilots[spec.dayOffset % pilots.length], role: "PILOT" },
-      { emp: coPilots[spec.dayOffset % coPilots.length], role: "CO_PILOT" },
-      { emp: cabinCrew[spec.dayOffset % cabinCrew.length], role: "CABIN_CREW" },
-      { emp: cabinCrew[(spec.dayOffset + 1) % cabinCrew.length], role: "CABIN_CREW" },
+      { emp: pilots[rot % pilots.length], role: "PILOT" },
+      { emp: coPilots[rot % coPilots.length], role: "CO_PILOT" },
+      { emp: cabinCrew[rot % cabinCrew.length], role: "CABIN_CREW" },
+      { emp: cabinCrew[(rot + 1) % cabinCrew.length], role: "CABIN_CREW" },
     ];
     for (const { emp, role } of crew) {
       if (emp) allCrew.push({ flightId: flight.id, employeeId: emp.id, role });
