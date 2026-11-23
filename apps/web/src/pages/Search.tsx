@@ -11,13 +11,11 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
-  Globe,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import FlightCard from '../components/FlightCard';
-import LiveFlights from '../components/LiveFlights';
 import type { Flight, ParsedSearch } from '../types';
-import { cn, todayIST, dateIST } from '../lib/utils';
+import { cn, todayIST } from '../lib/utils';
 
 const AIRPORTS = [
   { code: 'DEL', city: 'Delhi' },
@@ -32,7 +30,6 @@ export default function Search() {
   const [sp, setSp] = useSearchParams();
   const [nlMode, setNlMode] = useState(!!sp.get('q'));
   const [nlQuery, setNlQuery] = useState(sp.get('q') ?? '');
-  const [liveMode, setLiveMode] = useState(false);
 
   // Classic form state
   const [origin, setOrigin] = useState(sp.get('origin') ?? '');
@@ -43,11 +40,18 @@ export default function Search() {
     return d < today ? today : d;
   });
   const [pax, setPax] = useState(Number(sp.get('pax') ?? 1));
+  const [tripType, setTripType] = useState<'one-way' | 'round-trip'>(
+    sp.get('returnDate') ? 'round-trip' : 'one-way'
+  );
+  const [returnDate, setReturnDate] = useState(() => {
+    const d = sp.get('returnDate') ?? '';
+    return d < today ? '' : d;
+  });
 
   // NL parsed result
   const [parsedSearch, setParsedSearch] = useState<ParsedSearch | null>(null);
 
-  // Classic flight query
+  // Classic flight query — outbound
   const flightQuery = useQuery<Flight[]>({
     queryKey: ['flights', origin, destination, date, pax],
     queryFn: () => {
@@ -58,9 +62,27 @@ export default function Search() {
       params.set('pax', String(pax));
       return api.get<Flight[]>(`/flights?${params.toString()}`);
     },
-    enabled: !nlMode && !liveMode && date >= today,
+    enabled: !nlMode && date >= today,
     staleTime: 0,
   });
+
+  // Return leg query — only when round-trip and return date set
+  const returnQuery = useQuery<Flight[]>({
+    queryKey: ['flights-return', destination, origin, returnDate, pax],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (destination) params.set('origin', destination);
+      if (origin) params.set('destination', origin);
+      if (returnDate) params.set('date', returnDate);
+      params.set('pax', String(pax));
+      return api.get<Flight[]>(`/flights?${params.toString()}`);
+    },
+    enabled: !nlMode && tripType === 'round-trip' && !!returnDate && returnDate >= today,
+    staleTime: 0,
+  });
+
+  // Round-trip selection state
+  const [selectedOutbound, setSelectedOutbound] = useState<Flight | null>(null);
 
   // NL search mutation
   const nlMutation = useMutation({
@@ -94,7 +116,11 @@ export default function Search() {
     e.preventDefault();
     const safeDate = date < today ? today : date;
     if (safeDate !== date) setDate(safeDate);
-    setSp({ origin, destination, date: safeDate, pax: String(pax) });
+    const params: Record<string, string> = { origin, destination, date: safeDate, pax: String(pax) };
+    if (tripType === 'round-trip' && returnDate && returnDate >= safeDate) {
+      params.returnDate = returnDate;
+    }
+    setSp(params);
     void flightQuery.refetch();
   }
 
@@ -128,10 +154,10 @@ export default function Search() {
           {/* Mode toggle */}
           <div className="flex items-center gap-2 mb-5">
             <button
-              onClick={() => { setNlMode(false); setLiveMode(false); }}
+              onClick={() => { setNlMode(false); }}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-heading tracking-wider uppercase transition-all',
-                !nlMode && !liveMode
+                !nlMode
                   ? 'bg-gold/15 text-gold border border-gold/30'
                   : 'text-runway hover:text-cloud',
               )}
@@ -140,10 +166,10 @@ export default function Search() {
               Classic
             </button>
             <button
-              onClick={() => { setNlMode(true); setLiveMode(false); }}
+              onClick={() => { setNlMode(true); }}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-heading tracking-wider uppercase transition-all',
-                nlMode && !liveMode
+                nlMode
                   ? 'bg-gold/15 text-gold border border-gold/30'
                   : 'text-runway hover:text-cloud',
               )}
@@ -151,23 +177,9 @@ export default function Search() {
               <Sparkles className="w-3.5 h-3.5" />
               AI Search
             </button>
-            <button
-              onClick={() => { setLiveMode(true); setNlMode(false); }}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-heading tracking-wider uppercase transition-all',
-                liveMode
-                  ? 'bg-gold/15 text-gold border border-gold/30'
-                  : 'text-runway hover:text-cloud',
-              )}
-            >
-              <Globe className="w-3.5 h-3.5" />
-              Live Fares
-            </button>
           </div>
 
-          {liveMode ? (
-            <LiveFlights />
-          ) : nlMode ? (
+          {nlMode ? (
             <form onSubmit={handleNlSearch} className="flex gap-3">
               <div className="flex-1 input-group">
                 <Zap className="input-icon w-4 h-4 text-gold" />
@@ -194,6 +206,33 @@ export default function Search() {
             </form>
           ) : (
             <form onSubmit={handleClassicSearch}>
+              {/* Trip type toggle */}
+              <div className="flex items-center gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setTripType('one-way')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-sm font-heading tracking-wide border transition-all',
+                    tripType === 'one-way'
+                      ? 'bg-gold/15 text-gold border-gold/30'
+                      : 'text-runway border-sky-light/20 hover:border-sky-light/40'
+                  )}
+                >
+                  One Way
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTripType('round-trip')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-sm font-heading tracking-wide border transition-all',
+                    tripType === 'round-trip'
+                      ? 'bg-gold/15 text-gold border-gold/30'
+                      : 'text-runway border-sky-light/20 hover:border-sky-light/40'
+                  )}
+                >
+                  Round Trip
+                </button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="label">From</label>
@@ -251,6 +290,28 @@ export default function Search() {
                     />
                   </div>
                 </div>
+                {tripType === 'round-trip' && (
+                  <div>
+                    <label className="label">Return Date</label>
+                    <div className="input-group">
+                      <Calendar className="input-icon w-4 h-4" />
+                      <input
+                        type="date"
+                        className="input pl-11"
+                        value={returnDate}
+                        min={date || today}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setReturnDate(!v || v < date ? date : v);
+                        }}
+                        onBlur={e => {
+                          const v = e.target.value;
+                          if (!v || v < date) setReturnDate(date);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="label">Passengers</label>
                   <div className="input-group">
@@ -299,8 +360,7 @@ export default function Search() {
         </div>
 
         {/* Results */}
-        {!liveMode && (
-          <>
+        <>
         {isLoading && (
           <div className="flex flex-col items-center gap-4 py-16 animate-fade-in">
             <Loader2 className="w-10 h-10 text-gold animate-spin" />
@@ -327,30 +387,108 @@ export default function Search() {
 
         {!isLoading && !isError && hasSearched && (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-runway font-heading tracking-wide">
-                {flights.length > 0
-                  ? `${flights.length} flight${flights.length !== 1 ? 's' : ''} found`
-                  : 'No flights found'}
-              </p>
-            </div>
+            {/* Round-trip: two-column selection with combined total */}
+            {!nlMode && tripType === 'round-trip' ? (
+              <div className="space-y-8">
+                {/* Outbound */}
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="badge badge-blue text-xs">Outbound</span>
+                    <span className="text-sm text-runway">{origin || '?'} → {destination || '?'} · {date}</span>
+                    {selectedOutbound && (
+                      <span className="text-xs text-jade font-heading ml-auto">Selected ✓</span>
+                    )}
+                  </div>
+                  {flights.length === 0 ? (
+                    <div className="card p-8 text-center">
+                      <p className="font-heading text-cloud">No outbound flights found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 stagger-reveal">
+                      {flights.map(flight => (
+                        <div
+                          key={flight.id}
+                          className={cn('rounded-xl border transition-all cursor-pointer', selectedOutbound?.id === flight.id ? 'border-gold/60 ring-1 ring-gold/30' : 'border-transparent')}
+                          onClick={() => setSelectedOutbound(f => f?.id === flight.id ? null : flight)}
+                        >
+                          <FlightCard flight={flight} pax={pax} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            {flights.length === 0 ? (
-              <div className="card p-12 text-center">
-                <div className="text-5xl mb-4 opacity-30">✈</div>
-                <p className="font-heading text-xl font-semibold text-cloud mb-2">
-                  No Flights Found
-                </p>
-                <p className="text-sm text-runway max-w-sm mx-auto">
-                  Try adjusting your search criteria or check different dates.
-                </p>
+                {/* Return */}
+                {returnDate && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="badge badge-gold text-xs">Return</span>
+                      <span className="text-sm text-runway">{destination || '?'} → {origin || '?'} · {returnDate}</span>
+                    </div>
+                    {returnQuery.isLoading ? (
+                      <div className="flex items-center gap-3 py-8 justify-center">
+                        <Loader2 className="w-5 h-5 text-gold animate-spin" />
+                        <span className="text-runway text-sm">Loading return flights…</span>
+                      </div>
+                    ) : (returnQuery.data?.length ?? 0) === 0 ? (
+                      <div className="card p-8 text-center">
+                        <p className="font-heading text-cloud">No return flights found</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 stagger-reveal">
+                        {returnQuery.data!.map(flight => (
+                          <FlightCard key={flight.id} flight={flight} pax={pax} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Combined total if outbound selected */}
+                {selectedOutbound && (
+                  <div className="card border border-gold/30 p-4 flex items-center justify-between gap-4">
+                    <div className="text-sm text-runway">
+                      <span className="font-heading text-cloud">Round Trip Total</span>
+                      <span className="ml-2 text-xs">{origin} ↔ {destination} · {pax} pax</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-heading text-2xl font-bold text-gold">
+                        ₹{(selectedOutbound.baseFare * pax).toLocaleString()}+
+                      </p>
+                      <p className="text-xs text-runway/60">outbound only · select return to see full price</p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="space-y-4 stagger-reveal">
-                {flights.map(flight => (
-                  <FlightCard key={flight.id} flight={flight} pax={pax} />
-                ))}
-              </div>
+              /* One-way / NL results */
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-runway font-heading tracking-wide">
+                    {flights.length > 0
+                      ? `${flights.length} flight${flights.length !== 1 ? 's' : ''} found`
+                      : 'No flights found'}
+                  </p>
+                </div>
+
+                {flights.length === 0 ? (
+                  <div className="card p-12 text-center">
+                    <div className="text-5xl mb-4 opacity-30">✈</div>
+                    <p className="font-heading text-xl font-semibold text-cloud mb-2">
+                      No Flights Found
+                    </p>
+                    <p className="text-sm text-runway max-w-sm mx-auto">
+                      Try adjusting your search criteria or check different dates.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 stagger-reveal">
+                    {flights.map(flight => (
+                      <FlightCard key={flight.id} flight={flight} pax={pax} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -363,8 +501,7 @@ export default function Search() {
             </p>
           </div>
         )}
-          </>
-        )}
+        </>
       </div>
     </div>
   );
