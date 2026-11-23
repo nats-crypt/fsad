@@ -352,7 +352,19 @@ bookingsRouter.get(
         orderBy: { createdAt: "desc" },
       });
 
-      res.json(bookings);
+      // Prisma returns Decimal fields as objects; coerce to number for JSON
+      res.json(
+        bookings.map((b) => ({
+          ...b,
+          farePaid: Number(b.farePaid),
+          flight: b.flight
+            ? { ...b.flight, baseFare: Number(b.flight.baseFare) }
+            : null,
+          payment: b.payment
+            ? { ...b.payment, amount: Number(b.payment.amount) }
+            : null,
+        }))
+      );
     } catch (err) {
       next(err);
     }
