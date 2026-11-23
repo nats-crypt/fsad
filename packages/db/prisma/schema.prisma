@@ -112,20 +112,26 @@ model CrewAssignment {
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  pnr         String        @unique
-  passengerId String
-  flightId    String
-  seatId      String        @unique
-  farePaid    Decimal
-  status      BookingStatus @default(CONFIRMED)
-  createdAt   DateTime      @default(now())
-  cancelledAt DateTime?
-  flight      Flight        @relation(fields: [flightId], references: [id])
-  passenger   Passenger     @relation(fields: [passengerId], references: [id])
-  seat        Seat          @relation(fields: [seatId], references: [id])
-  payment     Payment?
-  ticket      Ticket?
+  id             String        @id @default(cuid())
+  pnr            String        @unique
+  passengerId    String
+  flightId       String
+  seatId         String        @unique
+  farePaid       Decimal
+  status         BookingStatus @default(CONFIRMED)
+  createdAt      DateTime      @default(now())
+  cancelledAt    DateTime?
+  /// Name of the traveller for this seat (may differ from account holder for co-passengers)
+  passengerName  String?
+  /// Email of the traveller for this seat
+  passengerEmail String?
+  /// "ADULT" | "CHILD" (child = under 12)
+  passengerType  String        @default("ADULT")
+  flight         Flight        @relation(fields: [flightId], references: [id])
+  passenger      Passenger     @relation(fields: [passengerId], references: [id])
+  seat           Seat          @relation(fields: [seatId], references: [id])
+  payment        Payment?
+  ticket         Ticket?
 }
 
 model Payment {
@@ -157,6 +163,8 @@ model PaymentOrder {
   orderId   String   @unique
   flightId  String
   seatNo    String
+  /// JSON array of {seatNo,fare} for multi-passenger orders; legacy single-seat orders have seatNo only.
+  seatsJson Json?
   /// Amount in rupees (server-computed from flight.baseFare).
   amount    Decimal
   userId    String

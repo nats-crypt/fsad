@@ -34,222 +34,214 @@ const mockPaymentSchema = z.object({
 // Union of the two valid payment shapes (razorpay proof | mock card+order).
 const paymentSchema = z.union([razorpayPaymentSchema, mockPaymentSchema]);
 
+const passengerInputSchema = z.object({
+  fullName: z.string().min(1),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  type: z.enum(["ADULT", "CHILD"]).default("ADULT"),
+  seatNo: z.string().min(1),
+  preferences: z.record(z.unknown()).optional(),
+});
+
 const createBookingSchema = z.object({
   flightId: z.string().min(1),
-  seatNo: z.string().min(1),
+  // Legacy single-passenger fields kept for backwards compat
+  seatNo: z.string().min(1).optional(),
   passenger: z.object({
     fullName: z.string().min(1),
     phone: z.string().optional(),
     preferences: z.record(z.unknown()).optional(),
-  }),
+  }).optional(),
+  // Multi-passenger path
+  passengers: z.array(passengerInputSchema).min(1).max(9).optional(),
   payment: paymentSchema,
+}).refine(d => d.passengers || d.seatNo, {
+  message: "passengers[] or seatNo is required",
 });
 
-/** POST /api/bookings — create booking with payment */
+/** POST /api/bookings — create booking with payment (supports 1–9 passengers) */
 bookingsRouter.post(
   "/",
   validate(createBookingSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { flightId, seatNo, passenger: passengerInput, payment } = req.body as z.infer<typeof createBookingSchema>;
+      const { flightId, seatNo, passenger: passengerInput, passengers: passengersInput, payment } =
+        req.body as z.infer<typeof createBookingSchema>;
       const userId = req.user!.id;
 
-      // Look up passenger by userId (Passenger.id !== userId)
-      const passenger = await prisma.passenger.findUnique({
-        where: { userId },
-      });
-      if (!passenger) {
-        throw new HttpError(404, "Passenger profile not found");
-      }
+      // Normalise to multi-passenger shape
+      const passengersList = passengersInput ?? [
+        {
+          fullName: passengerInput!.fullName,
+          email: undefined,
+          phone: passengerInput?.phone,
+          type: "ADULT" as const,
+          seatNo: seatNo!,
+          preferences: passengerInput?.preferences,
+        },
+      ];
+
+      // Look up account holder's passenger profile
+      const accountPassenger = await prisma.passenger.findUnique({ where: { userId } });
+      if (!accountPassenger) throw new HttpError(404, "Passenger profile not found");
 
       // Find the flight
       const flight = await prisma.flight.findUnique({ where: { id: flightId } });
-      if (!flight) {
-        throw new HttpError(404, "Flight not found");
-      }
+      if (!flight) throw new HttpError(404, "Flight not found");
 
-      // Find the seat
-      const seat = await prisma.seat.findUnique({
-        where: { flightId_seatNo: { flightId, seatNo } },
-      });
-      if (!seat) {
-        throw new HttpError(404, "Seat not found");
-      }
+      // Look up all seats
+      const seatNos = passengersList.map(p => p.seatNo);
+      const seats = await prisma.seat.findMany({ where: { flightId, seatNo: { in: seatNos } } });
+      if (seats.length !== seatNos.length) throw new HttpError(404, "One or more seats not found");
+      const seatMap = new Map(seats.map(s => [s.seatNo, s]));
 
-      // I2: resolve the orderId from whichever payment shape was submitted.
+      // Resolve payment order
       const submittedOrderId =
-        "razorpay_order_id" in payment
-          ? payment.razorpay_order_id
-          : payment.orderId;
+        "razorpay_order_id" in payment ? payment.razorpay_order_id : payment.orderId;
+      const paymentOrder = await prisma.paymentOrder.findUnique({ where: { orderId: submittedOrderId } });
+      if (!paymentOrder) throw new HttpError(402, "Payment order not found — call POST /api/payments/order first");
+      if (paymentOrder.userId !== userId) throw new HttpError(402, "Payment order does not belong to this user");
+      if (paymentOrder.flightId !== flightId) throw new HttpError(402, "Payment order flight mismatch");
+      if (paymentOrder.used) throw new HttpError(402, "Payment order has already been used");
 
-      // I2: look up the PaymentOrder created by POST /api/payments/order.
-      // This binds the booking to a server-computed amount and prevents
-      // clients from tampering with fare, seat, or flight.
-      const paymentOrder = await prisma.paymentOrder.findUnique({
-        where: { orderId: submittedOrderId },
-      });
+      // Validate that the ordered seats match what's being booked
+      const orderedSeats: Array<{ seatNo: string; fare: number }> =
+        paymentOrder.seatsJson
+          ? (paymentOrder.seatsJson as Array<{ seatNo: string; fare: number }>)
+          : [{ seatNo: paymentOrder.seatNo, fare: Number(paymentOrder.amount) }];
 
-      if (!paymentOrder) {
-        throw new HttpError(402, "Payment order not found — call POST /api/payments/order first");
-      }
-      if (paymentOrder.userId !== userId) {
-        throw new HttpError(402, "Payment order does not belong to this user");
-      }
-      if (paymentOrder.flightId !== flightId || paymentOrder.seatNo !== seatNo) {
-        throw new HttpError(402, "Payment order flight/seat mismatch");
-      }
-      if (paymentOrder.used) {
-        throw new HttpError(402, "Payment order has already been used");
+      const orderedSeatNos = orderedSeats.map(s => s.seatNo).sort().join(",");
+      const requestedSeatNos = [...seatNos].sort().join(",");
+      if (orderedSeatNos !== requestedSeatNos) {
+        throw new HttpError(402, "Payment order seat(s) mismatch");
       }
 
-      // Step 1: Verify payment BEFORE the seat transaction
+      // Build a fare lookup from the order
+      const fareLookup = new Map(orderedSeats.map(s => [s.seatNo, s.fare]));
+
+      // Verify payment
       const provider = getPaymentProvider();
       const verifyResult = await provider.verify(payment as Parameters<typeof provider.verify>[0]);
-      if (!verifyResult.ok) {
-        throw new HttpError(402, verifyResult.reason ?? "Payment failed");
-      }
+      if (!verifyResult.ok) throw new HttpError(402, verifyResult.reason ?? "Payment failed");
 
-      // Step 2: Atomic transaction — lock seat (C1), mark order used, create booking+payment+ticket
-      // Amount comes from the server-trusted PaymentOrder (in RUPEES) — not from the client.
-      const fare = Number(paymentOrder.amount);
-
-      let pnr: string;
-      let bookingId: string;
-
-      const result = await prisma.$transaction(async (tx) => {
-        // C1: Atomic seat lock — updateMany with status filter prevents TOCTOU race.
-        // If count===0 the seat was already BOOKED by a concurrent request.
-        const updated = await tx.seat.updateMany({
-          where: { id: seat.id, status: "AVAILABLE" },
-          data: { status: "BOOKED" },
-        });
-        if (updated.count === 0) {
-          throw new HttpError(409, "Seat is no longer available");
+      // Atomic transaction — lock all seats, create all bookings
+      const results = await prisma.$transaction(async (tx) => {
+        // Lock all seats atomically
+        for (const s of seats) {
+          const updated = await tx.seat.updateMany({
+            where: { id: s.id, status: "AVAILABLE" },
+            data: { status: "BOOKED" },
+          });
+          if (updated.count === 0) throw new HttpError(409, `Seat ${s.seatNo} is no longer available`);
         }
 
-        // I2: mark the PaymentOrder as consumed so it cannot be reused.
-        await tx.paymentOrder.update({
-          where: { orderId: submittedOrderId },
-          data: { used: true },
-        });
+        // Mark payment order used
+        await tx.paymentOrder.update({ where: { orderId: submittedOrderId }, data: { used: true } });
 
-        // Generate a unique PNR
-        let newPnr: string;
-        let attempts = 0;
-        do {
-          newPnr = genPnr();
-          const existing = await tx.booking.findUnique({ where: { pnr: newPnr } });
-          if (!existing) break;
-          attempts++;
-          if (attempts > 10) throw new Error("Failed to generate unique PNR");
-        } while (true);
-        pnr = newPnr;
+        const bookingResults = [];
+        for (const pax of passengersList) {
+          const seat = seatMap.get(pax.seatNo)!;
+          const fare = fareLookup.get(pax.seatNo) ?? Number(paymentOrder.amount);
 
-        // Create booking
-        const booking = await tx.booking.create({
-          data: {
-            pnr,
-            passengerId: passenger.id,
-            flightId,
-            seatId: seat.id,
-            farePaid: fare,
-            status: "CONFIRMED",
-          },
-        });
-        bookingId = booking.id;
+          // Generate unique PNR
+          let newPnr = "";
+          for (let attempts = 0; attempts < 10; attempts++) {
+            newPnr = genPnr();
+            const existing = await tx.booking.findUnique({ where: { pnr: newPnr } });
+            if (!existing) break;
+            if (attempts === 9) throw new Error("Failed to generate unique PNR");
+          }
 
-        // Create payment record — amount in RUPEES (Payment.amount is rupees, NOT paise).
-        const paymentRecord = await tx.payment.create({
-          data: {
-            bookingId: booking.id,
-            orderId: submittedOrderId,
-            paymentId: verifyResult.paymentId ?? null,
-            cardLast4: verifyResult.last4 ?? null,
-            amount: fare, // RUPEES
-            status: "PAID",
-            method: verifyResult.method ?? "CARD",
-          },
-        });
+          const booking = await tx.booking.create({
+            data: {
+              pnr: newPnr,
+              passengerId: accountPassenger.id,
+              flightId,
+              seatId: seat.id,
+              farePaid: fare,
+              status: "CONFIRMED",
+              passengerName: pax.fullName,
+              passengerEmail: pax.email ?? null,
+              passengerType: pax.type,
+            },
+          });
 
-        // Create ticket
-        const ticket = await tx.ticket.create({
-          data: { bookingId: booking.id },
-        });
+          // Only the first passenger gets the payment record (total amount)
+          if (bookingResults.length === 0) {
+            await tx.payment.create({
+              data: {
+                bookingId: booking.id,
+                orderId: submittedOrderId,
+                paymentId: verifyResult.paymentId ?? null,
+                cardLast4: verifyResult.last4 ?? null,
+                amount: Number(paymentOrder.amount), // total
+                status: "PAID",
+                method: verifyResult.method ?? "CARD",
+              },
+            });
+          }
 
-        // Increment seatsBooked on flight
+          await tx.ticket.create({ data: { bookingId: booking.id } });
+
+          if (pax.preferences) {
+            await tx.passenger.update({
+              where: { id: accountPassenger.id },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              data: { preferences: pax.preferences as any },
+            });
+          }
+
+          bookingResults.push({ booking, seat, fare, pax });
+        }
+
+        // Increment seatsBooked count once for all seats
         await tx.flight.update({
           where: { id: flightId },
-          data: { seatsBooked: { increment: 1 } },
+          data: { seatsBooked: { increment: seats.length } },
         });
 
-        // Persist passenger preferences if provided
-        if (passengerInput.preferences) {
-          await tx.passenger.update({
-            where: { id: passenger.id },
-            data: { preferences: passengerInput.preferences },
-          });
-        }
-
-        return { booking, paymentRecord, ticket };
+        return bookingResults;
       });
 
-      // After transaction: render PDF and upload to S3 (no-op in test env)
-      try {
-        const updatedFlight = await prisma.flight.findUnique({
-          where: { id: flightId },
-          include: { origin: true, destination: true },
-        });
+      // After transaction: generate PDFs and send confirmation emails (fire-and-forget)
+      const updatedFlight = await prisma.flight.findUnique({
+        where: { id: flightId },
+        include: { origin: true, destination: true },
+      });
+      const accountUser = await prisma.user.findUnique({ where: { id: userId } });
 
-        const pdfBuffer = await renderTicketPdf({
-          pnr: result.booking.pnr,
-          flightNo: flight.flightNo,
-          origin: updatedFlight?.origin.code ?? "",
-          destination: updatedFlight?.destination.code ?? "",
-          departAt: flight.departAt,
-          arriveAt: flight.arriveAt,
-          passengerName: passenger.fullName,
-          seatNo,
-          cabinClass: seat.cabinClass,
-          farePaid: fare,
-        });
+      Promise.all(
+        results.map(async ({ booking, seat, fare, pax }) => {
+          try {
+            const pdfBuffer = await renderTicketPdf({
+              pnr: booking.pnr,
+              flightNo: flight.flightNo,
+              origin: updatedFlight?.origin.code ?? "",
+              destination: updatedFlight?.destination.code ?? "",
+              departAt: flight.departAt,
+              arriveAt: flight.arriveAt,
+              passengerName: pax.fullName,
+              seatNo: seat.seatNo,
+              cabinClass: seat.cabinClass,
+              farePaid: fare,
+            });
 
-        const pdfKey = ticketKey(result.booking.pnr);
-        const uploadedKey = await putObject(pdfKey, pdfBuffer, "application/pdf");
+            const pdfKey = ticketKey(booking.pnr);
+            const uploadedKey = await putObject(pdfKey, pdfBuffer, "application/pdf");
+            if (uploadedKey) {
+              await prisma.ticket.update({ where: { bookingId: booking.id }, data: { pdfKey: uploadedKey } });
+            }
 
-        if (uploadedKey) {
-          await prisma.ticket.update({
-            where: { bookingId: result.booking.id },
-            data: { pdfKey: uploadedKey },
-          });
-        }
-      } catch (pdfErr) {
-        // PDF generation/upload failure should not fail the booking
-        console.error("PDF generation/upload failed (non-fatal):", pdfErr);
-      }
+            // Send to account holder, plus co-passenger's email if provided
+            const recipients = [accountUser?.email].filter(Boolean) as string[];
+            if (pax.email && pax.email !== accountUser?.email) recipients.push(pax.email);
 
-      // Fire-and-forget confirmation email — don't await, response goes back immediately
-      const confirmPnr = result.booking.pnr;
-      const confirmUserId = req.user!.id;
-      Promise.all([
-        prisma.user.findUnique({ where: { id: confirmUserId } }),
-        prisma.flight.findUnique({ where: { id: flightId }, include: { origin: true, destination: true } }),
-        prisma.seat.findUnique({ where: { flightId_seatNo: { flightId, seatNo } } }),
-        prisma.passenger.findUnique({ where: { userId: confirmUserId } }),
-      ]).then(async ([user, flight, seat, passenger]) => {
-        if (!user?.email || !flight || !seat) return;
-        const dep = flight.departAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short" });
-        const pdfBuffer = await renderTicketPdf({
-          pnr: confirmPnr, flightNo: flight.flightNo,
-          origin: flight.origin.code, destination: flight.destination.code,
-          departAt: flight.departAt, arriveAt: flight.arriveAt,
-          passengerName: passenger?.fullName ?? user.email,
-          seatNo: seat.seatNo, cabinClass: seat.cabinClass,
-          farePaid: Number(flight.baseFare),
-        });
-        await sendMail({
-          to: user.email,
-          subject: `Booking Confirmed — ${flight.flightNo} · PNR: ${confirmPnr}`,
-          html: `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+            const dep = flight.departAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short" });
+            for (const to of recipients) {
+              await sendMail({
+                to,
+                subject: `Booking Confirmed — ${flight.flightNo} · PNR: ${booking.pnr}`,
+                html: `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
 <body style="font-family:Arial,sans-serif;background:#0a0f1e;color:#e8dfc8;margin:0;padding:24px;">
   <div style="max-width:520px;margin:auto;background:#111827;border:1px solid #2a3a5c;border-radius:12px;overflow:hidden;">
     <div style="background:#b8972a;padding:20px 28px;">
@@ -257,34 +249,41 @@ bookingsRouter.post(
     </div>
     <div style="padding:28px;">
       <h2 style="color:#b8972a;margin-top:0;">Booking Confirmed!</h2>
-      <p style="color:#a0aec0;">Your flight has been booked. Your e-ticket is attached as a PDF.</p>
+      <p style="color:#a0aec0;">Hello ${pax.fullName}, your e-ticket is attached.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td><td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${confirmPnr}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td><td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${booking.pnr}</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Flight</td><td style="padding:8px 0;color:#e8dfc8;">${flight.flightNo}</td></tr>
-        <tr><td style="padding:8px 0;color:#a0aec0;">Route</td><td style="padding:8px 0;color:#e8dfc8;">${flight.origin.code} → ${flight.destination.code}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Route</td><td style="padding:8px 0;color:#e8dfc8;">${updatedFlight?.origin.code} → ${updatedFlight?.destination.code}</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Departure</td><td style="padding:8px 0;color:#e8dfc8;">${dep} IST</td></tr>
         <tr><td style="padding:8px 0;color:#a0aec0;">Seat</td><td style="padding:8px 0;color:#e8dfc8;">${seat.seatNo} (${seat.cabinClass})</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Type</td><td style="padding:8px 0;color:#e8dfc8;">${pax.type}</td></tr>
       </table>
       <p style="color:#a0aec0;font-size:12px;margin-top:24px;">Safe travels,<br/><strong style="color:#b8972a;">Horizon Airways Team</strong></p>
     </div>
   </div>
 </body></html>`,
-          attachments: [{ filename: `Horizon-Ticket-${confirmPnr}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
-        });
-      }).catch(err => console.error("Confirmation email failed (non-fatal):", err));
+                attachments: [{ filename: `Horizon-Ticket-${booking.pnr}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+              });
+            }
+          } catch (err) {
+            console.error(`Post-booking processing failed for PNR ${booking.pnr} (non-fatal):`, err);
+          }
+        })
+      ).catch(err => console.error("Batch post-booking failed:", err));
 
-      // Return the booking with related data
-      const finalBooking = await prisma.booking.findUnique({
-        where: { id: result.booking.id },
-        include: {
-          flight: { include: { origin: true, destination: true } },
-          seat: true,
-          payment: true,
-          ticket: true,
-        },
+      // Return all created bookings
+      res.json({
+        bookings: results.map(r => ({
+          id: r.booking.id,
+          pnr: r.booking.pnr,
+          flightId,
+          seatNo: r.seat.seatNo,
+          passengerName: r.pax.fullName,
+          passengerType: r.pax.type,
+          farePaid: r.fare,
+          status: "CONFIRMED",
+        })),
       });
-
-      res.json(finalBooking);
     } catch (err) {
       next(err);
     }

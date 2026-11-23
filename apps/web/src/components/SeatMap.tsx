@@ -4,6 +4,10 @@ import type { Seat } from '../types';
 interface SeatMapProps {
   seats: Seat[];
   selectedSeat: string | null;
+  /** For multi-passenger: list of all selected seat IDs */
+  selectedSeats?: string[];
+  /** For multi-passenger: max seats user can select */
+  maxSelectable?: number;
   onSelect: (seatId: string, seatNo: string) => void;
   disabled?: boolean;
 }
@@ -52,7 +56,7 @@ function getSeatPosition(col: string): string {
   return 'Aisle';
 }
 
-export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: SeatMapProps) {
+export default function SeatMap({ seats, selectedSeat, selectedSeats, maxSelectable, onSelect, disabled }: SeatMapProps) {
   const cabins = groupSeats(seats);
   const sortedCabins = [...cabins.entries()].sort(
     ([a], [b]) =>
@@ -163,7 +167,9 @@ export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: Sea
                     </div>
                     {sorted.map((seat, idx) => {
                       const isBooked = seat.status !== 'AVAILABLE';
-                      const isSelected = selectedSeat === seat.id;
+                      const isSelected = selectedSeats
+                        ? selectedSeats.includes(seat.id)
+                        : selectedSeat === seat.id;
                       const col = seat.seatNo.replace(/\d+/, '');
                       const position = getSeatPosition(col);
 
@@ -193,7 +199,11 @@ export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: Sea
                                   : colors.available,
                             )}
                           >
-                            {isSelected ? '✓' : ''}
+                            {isSelected
+                              ? (selectedSeats
+                                  ? (selectedSeats.indexOf(seat.id) + 1).toString()
+                                  : '✓')
+                              : ''}
                           </button>
                           {hasAisle && <div className="w-4" />}
                         </span>

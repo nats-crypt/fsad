@@ -127,7 +127,7 @@ export default function FlightCard({ flight, pax = 1 }: FlightCardProps) {
         <div className="mt-4 flex justify-end">
           {user ? (
             <Link
-              to={`/book/${flight.id}`}
+              to={`/book/${flight.id}?pax=${pax}`}
               className="btn-primary btn-sm"
               onClick={e => e.stopPropagation()}
             >
