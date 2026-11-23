@@ -58,7 +58,7 @@ export default function Search() {
       params.set('pax', String(pax));
       return api.get<Flight[]>(`/flights?${params.toString()}`);
     },
-    enabled: !nlMode && !liveMode,
+    enabled: !nlMode && !liveMode && date >= today,
     staleTime: 0,
   });
 
@@ -92,7 +92,9 @@ export default function Search() {
 
   function handleClassicSearch(e: FormEvent) {
     e.preventDefault();
-    setSp({ origin, destination, date, pax: String(pax) });
+    const safeDate = date < today ? today : date;
+    if (safeDate !== date) setDate(safeDate);
+    setSp({ origin, destination, date: safeDate, pax: String(pax) });
     void flightQuery.refetch();
   }
 
@@ -240,7 +242,11 @@ export default function Search() {
                       min={today}
                       onChange={e => {
                         const v = e.target.value;
-                        setDate(v < today ? today : v);
+                        setDate(!v || v < today ? today : v);
+                      }}
+                      onBlur={e => {
+                        const v = e.target.value;
+                        if (!v || v < today) setDate(today);
                       }}
                     />
                   </div>

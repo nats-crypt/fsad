@@ -240,7 +240,16 @@ export default function Landing() {
                         className="input pl-11"
                         value={date}
                         min={todayIST()}
-                        onChange={e => setDate(e.target.value)}
+                        onChange={e => {
+                          const v = e.target.value;
+                          const t = todayIST();
+                          setDate(!v || v < t ? t : v);
+                        }}
+                        onBlur={e => {
+                          const v = e.target.value;
+                          const t = todayIST();
+                          if (!v || v < t) setDate(t);
+                        }}
                       />
                     </div>
                   </div>
