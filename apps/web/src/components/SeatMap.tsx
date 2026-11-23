@@ -46,6 +46,12 @@ function groupSeats(seats: Seat[]): Map<string, Map<string, Seat[]>> {
   return cabins;
 }
 
+function getSeatPosition(col: string): string {
+  if (col === 'A' || col === 'F') return 'Window';
+  if (col === 'B' || col === 'E') return 'Middle';
+  return 'Aisle';
+}
+
 export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: SeatMapProps) {
   const cabins = groupSeats(seats);
   const sortedCabins = [...cabins.entries()].sort(
@@ -158,6 +164,8 @@ export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: Sea
                     {sorted.map((seat, idx) => {
                       const isBooked = seat.status !== 'AVAILABLE';
                       const isSelected = selectedSeat === seat.id;
+                      const col = seat.seatNo.replace(/\d+/, '');
+                      const position = getSeatPosition(col);
 
                       // Add aisle gap after 3rd seat (ABC | DEF layout)
                       const hasAisle = idx === Math.floor(sorted.length / 2) - 1;
@@ -171,10 +179,10 @@ export default function SeatMap({ seats, selectedSeat, onSelect, disabled }: Sea
                               isBooked
                                 ? `${seat.seatNo} — Booked`
                                 : seat.fare
-                                  ? `${seat.seatNo} — ${seat.cabinClass} — ₹${seat.fare.toLocaleString()}`
-                                  : `${seat.seatNo} — ${seat.cabinClass}`
+                                  ? `${seat.seatNo} — ${position} — ₹${seat.fare.toLocaleString()}`
+                                  : `${seat.seatNo} — ${position}`
                             }
-                            aria-label={`Seat ${seat.seatNo}`}
+                            aria-label={`Seat ${seat.seatNo} ${position}`}
                             aria-pressed={isSelected}
                             className={cn(
                               'seat',

@@ -365,6 +365,8 @@ export default function Booking() {
                 const seat = flight.seats?.find(s => s.id === selectedSeatId);
                 const cabinLabel = seat?.cabinClass === 'FIRST' ? 'First Class' : seat?.cabinClass === 'BUSINESS' ? 'Business' : 'Economy';
                 const badgeClass = seat?.cabinClass === 'FIRST' ? 'badge-gold' : seat?.cabinClass === 'BUSINESS' ? 'badge-blue' : 'badge-gray';
+                const col = selectedSeatNo.replace(/\d+/, '');
+                const position = col === 'A' || col === 'F' ? 'Window' : col === 'B' || col === 'E' ? 'Middle' : 'Aisle';
                 return (
                   <div className="flex items-center gap-4 bg-sky-mid/40 border border-gold/20 rounded-xl p-4 mb-5">
                     <div className="w-12 h-12 rounded-xl bg-gold/10 border border-gold/30 flex items-center justify-center">
@@ -373,7 +375,10 @@ export default function Booking() {
                     <div className="flex-1">
                       <p className="text-xs text-runway uppercase tracking-wider font-heading">Your Seat</p>
                       <p className="font-heading text-cloud font-semibold">Seat {selectedSeatNo}</p>
-                      <span className={`badge text-xs mt-0.5 ${badgeClass}`}>{cabinLabel}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`badge text-xs ${badgeClass}`}>{cabinLabel}</span>
+                        <span className="badge badge-gray text-xs">{position}</span>
+                      </div>
                     </div>
                     {seat?.fare && (
                       <div className="text-right">
