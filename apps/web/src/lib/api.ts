@@ -44,13 +44,18 @@ async function request<T>(
 
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
 
-  const res = await fetch(url, {
-    method,
-    credentials: 'include',
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      ...options,
+    });
+  } catch {
+    throw new ApiError(0, 'Network error — please check your connection');
+  }
 
   if (res.status === 204) {
     return undefined as T;

@@ -96,13 +96,14 @@ export default function MyBookings() {
     ],
   });
 
-  const { data: ticketData } = useQuery<{ ticket: TicketType; pdfUrl?: string }>({
+  const { data: ticketData, isError: ticketError } = useQuery<{ ticket: TicketType; pdfUrl?: string }>({
     queryKey: ['ticket', viewTicketBookingId],
     queryFn: () =>
       api.get<{ ticket: TicketType; pdfUrl?: string }>(
         `/bookings/${viewTicketBookingId}/ticket`,
       ),
     enabled: !!viewTicketBookingId,
+    retry: false,
   });
 
   const cancelMutation = useMutation({
@@ -293,11 +294,20 @@ export default function MyBookings() {
                 )}
 
                 {/* Ticket view */}
-                {viewTicketBookingId === booking.id && ticketData && (
+                {viewTicketBookingId === booking.id && (
                   <div className="mt-4 pt-4 border-t border-sky-light/20">
-                    <ETicket
-                      ticket={{ ...ticketData.ticket, pdfUrl: ticketData.pdfUrl }}
-                    />
+                    {ticketError ? (
+                      <div className="flex items-center gap-2 text-sm text-ember">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        Failed to load ticket. Please try again.
+                      </div>
+                    ) : ticketData ? (
+                      <ETicket ticket={{ ...ticketData.ticket, pdfUrl: ticketData.pdfUrl }} />
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-runway">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading ticket…
+                      </div>
+                    )}
                   </div>
                 )}
 
