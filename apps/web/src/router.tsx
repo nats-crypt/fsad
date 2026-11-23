@@ -18,7 +18,6 @@ import EmployeesAdmin from './pages/admin/EmployeesAdmin';
 import FlightsAdmin from './pages/admin/FlightsAdmin';
 import CrewAdmin from './pages/admin/CrewAdmin';
 import Attendance from './pages/admin/Attendance';
-import Duty from './pages/admin/Duty';
 import Optimizer from './pages/admin/Optimizer';
 import Reports from './pages/admin/Reports';
 import BookingsAdmin from './pages/admin/BookingsAdmin';
@@ -87,7 +86,6 @@ export const router = createBrowserRouter([
       { path: 'bookings', element: <BookingsAdmin /> },
       { path: 'crew', element: <CrewAdmin /> },
       { path: 'attendance', element: <Attendance /> },
-      { path: 'duty', element: <Duty /> },
       { path: 'optimizer', element: <Optimizer /> },
       { path: 'reports', element: <Reports /> },
     ],

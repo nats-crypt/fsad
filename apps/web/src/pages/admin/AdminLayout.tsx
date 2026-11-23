@@ -12,7 +12,6 @@ import {
   Menu,
   X,
   LogOut,
-  Settings,
   Ticket,
   Radio,
 } from 'lucide-react';
@@ -28,7 +27,6 @@ const NAV = [
   { to: '/admin/bookings', label: 'Bookings', icon: Ticket },
   { to: '/admin/crew', label: 'Crew', icon: UserCheck },
   { to: '/admin/attendance', label: 'Attendance', icon: Clock },
-  { to: '/admin/duty', label: 'Duty', icon: Settings },
   { to: '/admin/optimizer', label: 'AI Optimizer', icon: Zap },
   { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
 ];
