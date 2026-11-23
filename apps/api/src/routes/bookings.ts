@@ -459,6 +459,48 @@ bookingsRouter.post(
         return cancelled;
       });
 
+      // Fire-and-forget cancellation email
+      const flight = await prisma.flight.findUnique({
+        where: { id: booking.flightId },
+        include: { origin: true, destination: true },
+      });
+      const accountUser = await prisma.user.findUnique({ where: { id: userId } });
+      const passengerName = booking.passengerName ?? booking.passenger.fullName;
+      const recipients = [accountUser?.email].filter(Boolean) as string[];
+      if (booking.passengerEmail && booking.passengerEmail !== accountUser?.email)
+        recipients.push(booking.passengerEmail);
+
+      if (flight) {
+        const dep = flight.departAt.toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short",
+        });
+        sendMail({
+          to: recipients[0],
+          subject: `Booking Cancelled — ${flight.flightNo} · PNR: ${booking.pnr}`,
+          html: `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="font-family:Arial,sans-serif;background:#0a0f1e;color:#e8dfc8;margin:0;padding:24px;">
+  <div style="max-width:520px;margin:auto;background:#111827;border:1px solid #2a3a5c;border-radius:12px;overflow:hidden;">
+    <div style="background:#b8972a;padding:20px 28px;">
+      <h1 style="margin:0;font-size:22px;color:#0a0f1e;letter-spacing:2px;text-transform:uppercase;">✈ Horizon Airways</h1>
+    </div>
+    <div style="padding:28px;">
+      <h2 style="color:#e53e3e;margin-top:0;">Booking Cancelled</h2>
+      <p style="color:#a0aec0;">Hello ${passengerName}, your booking has been cancelled.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px 0;color:#a0aec0;width:140px;">PNR</td><td style="padding:8px 0;color:#e8dfc8;font-weight:bold;font-family:monospace;">${booking.pnr}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Flight</td><td style="padding:8px 0;color:#e8dfc8;">${flight.flightNo}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Route</td><td style="padding:8px 0;color:#e8dfc8;">${flight.origin.code} → ${flight.destination.code}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Departure</td><td style="padding:8px 0;color:#e8dfc8;">${dep} IST</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Seat</td><td style="padding:8px 0;color:#e8dfc8;">${booking.seat.seatNo}</td></tr>
+        <tr><td style="padding:8px 0;color:#a0aec0;">Refund</td><td style="padding:8px 0;color:#68d391;">Will be processed per our refund policy</td></tr>
+      </table>
+      <p style="color:#a0aec0;font-size:12px;margin-top:24px;">Safe travels,<br/><strong style="color:#b8972a;">Horizon Airways Team</strong></p>
+    </div>
+  </div>
+</body></html>`,
+        }).catch(err => console.error("[bookings] cancel email failed:", err));
+      }
+
       res.json(updated);
     } catch (err) {
       next(err);

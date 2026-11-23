@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   User,
   Phone,
@@ -12,8 +13,6 @@ import {
   AlertCircle,
   Loader2,
   Lock,
-  Eye,
-  EyeOff,
   Globe,
   CreditCard,
   MapPin,
@@ -91,30 +90,6 @@ export default function Profile() {
   const [assistance, setAssistance] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // Change password state
-  const [currentPw, setCurrentPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [pwSaved, setPwSaved] = useState(false);
-  const [pwError, setPwError] = useState('');
-
-  const pwMutation = useMutation({
-    mutationFn: () =>
-      api.post('/auth/change-password', {
-        currentPassword: currentPw,
-        newPassword: newPw,
-      }),
-    onSuccess: () => {
-      setCurrentPw(''); setNewPw(''); setConfirmPw('');
-      setPwError('');
-      setPwSaved(true);
-      setTimeout(() => setPwSaved(false), 3000);
-    },
-    onError: (err: Error) => {
-      setPwError(err.message ?? 'Failed to change password');
-    },
-  });
 
   useEffect(() => {
     if (!profile) return;
@@ -325,74 +300,20 @@ export default function Profile() {
           </div>
         </form>
 
-        {/* Change Password */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setPwError('');
-            if (newPw.length < 8) { setPwError('New password must be at least 8 characters'); return; }
-            if (newPw !== confirmPw) { setPwError('Passwords do not match'); return; }
-            pwMutation.mutate();
-          }}
-          className="card border border-sky-light/30 p-6 mt-6 animate-fade-up animate-delay-200"
-        >
-          <h2 className="font-heading text-sm tracking-widest uppercase text-gold mb-5 flex items-center gap-2">
+        {/* Reset Password */}
+        <div className="card border border-sky-light/30 p-6 mt-6 animate-fade-up animate-delay-200">
+          <h2 className="font-heading text-sm tracking-widest uppercase text-gold mb-2 flex items-center gap-2">
             <Lock className="w-4 h-4" />
-            Change Password
+            Password
           </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="label">Current Password</label>
-              <div className="input-group">
-                <Lock className="input-icon w-4 h-4" />
-                <input className="input pl-11 pr-10" type={showPw ? 'text' : 'password'}
-                  placeholder="Your current password"
-                  value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} required />
-                <button type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-runway hover:text-cloud"
-                  onClick={() => setShowPw(s => !s)} tabIndex={-1}>
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="label">New Password</label>
-              <div className="input-group">
-                <Lock className="input-icon w-4 h-4" />
-                <input className="input pl-11" type={showPw ? 'text' : 'password'}
-                  placeholder="At least 8 characters"
-                  value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={8} />
-              </div>
-            </div>
-            <div>
-              <label className="label">Confirm New Password</label>
-              <div className="input-group">
-                <Lock className="input-icon w-4 h-4" />
-                <input className="input pl-11" type={showPw ? 'text' : 'password'}
-                  placeholder="Repeat new password"
-                  value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} required />
-              </div>
-            </div>
-
-            {pwError && (
-              <div className="flex items-center gap-2 text-sm text-ember">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" /> {pwError}
-              </div>
-            )}
-
-            <div className="flex items-center gap-4 pt-1">
-              <button type="submit" className="btn-primary" disabled={pwMutation.isPending}>
-                {pwMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                Change Password
-              </button>
-              {pwSaved && (
-                <span className="flex items-center gap-1.5 text-sm text-emerald-400 animate-fade-in">
-                  <CheckCircle className="w-4 h-4" /> Password updated
-                </span>
-              )}
-            </div>
-          </div>
-        </form>
+          <p className="text-sm text-runway mb-4">
+            To change your password, we'll send a reset link to your email.
+          </p>
+          <Link to="/forgot-password" className="btn-secondary inline-flex items-center gap-2">
+            <Lock className="w-4 h-4" />
+            Reset Password
+          </Link>
+        </div>
       </div>
     </div>
   );
