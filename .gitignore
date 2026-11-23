@@ -34,3 +34,5 @@ vitest-report/
 # Temp / uploads
 tmp/
 uploads/
+OVERVIEW.md
+WALKTHROUGH.md
