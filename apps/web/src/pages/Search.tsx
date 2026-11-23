@@ -37,9 +37,11 @@ export default function Search() {
   // Classic form state
   const [origin, setOrigin] = useState(sp.get('origin') ?? '');
   const [destination, setDestination] = useState(sp.get('destination') ?? '');
-  const [date, setDate] = useState(
-    sp.get('date') ?? new Date().toISOString().split('T')[0],
-  );
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(() => {
+    const d = sp.get('date') ?? today;
+    return d < today ? today : d;
+  });
   const [pax, setPax] = useState(Number(sp.get('pax') ?? 1));
 
   // NL parsed result
@@ -57,6 +59,7 @@ export default function Search() {
       return api.get<Flight[]>(`/flights?${params.toString()}`);
     },
     enabled: !nlMode && !liveMode,
+    staleTime: 0,
   });
 
   // NL search mutation
@@ -234,8 +237,11 @@ export default function Search() {
                       type="date"
                       className="input pl-11"
                       value={date}
-                      min={new Date().toISOString().split('T')[0]}
-                      onChange={e => setDate(e.target.value)}
+                      min={today}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setDate(v < today ? today : v);
+                      }}
                     />
                   </div>
                 </div>

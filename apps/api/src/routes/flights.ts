@@ -30,7 +30,12 @@ flightsRouter.get(
       const dayEnd = new Date(`${date}T23:59:59.999+05:30`);
 
       const now = new Date();
-      // For today's search, hide flights that have already departed
+      // Reject searches for past dates — the whole day has already ended
+      if (dayEnd < now && dayStart.toDateString() !== now.toDateString()) {
+        res.json([]);
+        return;
+      }
+      // For today's search, only show flights that haven't departed yet
       const departFrom = dayStart <= now ? now : dayStart;
 
       const flights = await prisma.flight.findMany({
