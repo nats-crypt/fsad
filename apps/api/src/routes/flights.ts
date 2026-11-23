@@ -8,8 +8,8 @@ import { validate } from "../lib/validate.js";
 export const flightsRouter = Router();
 
 const searchSchema = z.object({
-  origin: z.string().min(2).max(5).toUpperCase(),
-  destination: z.string().min(2).max(5).toUpperCase(),
+  origin: z.string().min(2).max(5).toUpperCase().optional(),
+  destination: z.string().min(2).max(5).toUpperCase().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
   pax: z.coerce.number().int().min(1).optional().default(1),
 });
@@ -31,12 +31,9 @@ flightsRouter.get(
 
       const flights = await prisma.flight.findMany({
         where: {
-          origin: { code: origin },
-          destination: { code: destination },
-          departAt: {
-            gte: dayStart,
-            lte: dayEnd,
-          },
+          ...(origin ? { origin: { code: origin } } : {}),
+          ...(destination ? { destination: { code: destination } } : {}),
+          departAt: { gte: dayStart, lte: dayEnd },
           status: { not: "CANCELLED" },
         },
         include: {
