@@ -13,15 +13,19 @@ import {
   X,
   LogOut,
   Settings,
+  Ticket,
+  Radio,
 } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { cn } from '../../lib/utils';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },
+  { to: '/admin/live-map', label: 'Live Map', icon: Radio },
   { to: '/admin/aircraft', label: 'Aircraft', icon: Plane },
   { to: '/admin/employees', label: 'Employees', icon: Users },
   { to: '/admin/flights', label: 'Flights', icon: Calendar },
+  { to: '/admin/bookings', label: 'Bookings', icon: Ticket },
   { to: '/admin/crew', label: 'Crew', icon: UserCheck },
   { to: '/admin/attendance', label: 'Attendance', icon: Clock },
   { to: '/admin/duty', label: 'Duty', icon: Settings },

@@ -49,21 +49,21 @@ crewRouter.post(
   }
 );
 
-/** GET /api/crew?flightId=... — list crew for a flight */
+/** GET /api/crew?flightId=... — list crew assignments; flightId is optional */
 crewRouter.get(
   "/",
   ...writeGuard,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { flightId } = req.query;
-      if (!flightId || typeof flightId !== "string") {
-        throw new HttpError(400, "flightId query parameter is required");
-      }
 
       const assignments = await prisma.crewAssignment.findMany({
-        where: { flightId },
+        where: {
+          ...(flightId && typeof flightId === "string" ? { flightId } : {}),
+        },
         include: {
           employee: { select: { id: true, fullName: true, empCode: true, designation: true } },
+          flight: { select: { flightNo: true } },
         },
         orderBy: { id: "asc" },
       });

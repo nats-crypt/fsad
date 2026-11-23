@@ -76,6 +76,9 @@ dutyRouter.get(
         where: {
           ...(employeeId && typeof employeeId === "string" ? { employeeId } : {}),
         },
+        include: {
+          employee: { select: { fullName: true, empCode: true } },
+        },
         orderBy: { startAt: "desc" },
       });
 

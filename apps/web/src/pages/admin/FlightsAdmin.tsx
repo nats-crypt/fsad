@@ -110,18 +110,30 @@ function FlightForm({
           />
         </div>
         <div>
-          <label className="label">Status</label>
-          <select
+          <label className="label">Capacity *</label>
+          <input
+            type="number"
             className="input"
-            value={String(initial['status'] ?? 'SCHEDULED')}
-            onChange={e => onChange({ ...initial, status: e.target.value })}
-          >
-            <option value="SCHEDULED">Scheduled</option>
-            <option value="DEPARTED">Departed</option>
-            <option value="ARRIVED">Arrived</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
+            value={String(initial['capacity'] ?? '')}
+            onChange={e => onChange({ ...initial, capacity: Number(e.target.value) })}
+            min={1}
+            placeholder="e.g. 180"
+            required
+          />
         </div>
+      </div>
+      <div>
+        <label className="label">Status</label>
+        <select
+          className="input"
+          value={String(initial['status'] ?? 'SCHEDULED')}
+          onChange={e => onChange({ ...initial, status: e.target.value })}
+        >
+          <option value="SCHEDULED">Scheduled</option>
+          <option value="DEPARTED">Departed</option>
+          <option value="ARRIVED">Arrived</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
       </div>
     </div>
   );
@@ -137,7 +149,7 @@ export default function FlightsAdmin() {
 
   const { data: flights, isLoading } = useQuery<Flight[]>({
     queryKey: ['admin-flights'],
-    queryFn: () => api.get<Flight[]>('/flights'),
+    queryFn: () => api.get<Flight[]>('/flights/all'),
   });
 
   const { data: aircraft } = useQuery<Aircraft[]>({
@@ -190,6 +202,7 @@ export default function FlightsAdmin() {
       departAt: f.departAt.slice(0, 16),
       arriveAt: f.arriveAt.slice(0, 16),
       baseFare: f.baseFare,
+      capacity: f.capacity,
       status: f.status,
       aircraftId: undefined,
     });
@@ -197,10 +210,22 @@ export default function FlightsAdmin() {
     setModalOpen(true);
   }
 
+  function toIso(val: unknown): string | undefined {
+    if (!val) return undefined;
+    const s = String(val);
+    if (s.includes('Z') || s.includes('+')) return s;
+    return new Date(s).toISOString();
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setModalError('');
-    save.mutate(form);
+    const payload = {
+      ...form,
+      ...(form.departAt ? { departAt: toIso(form.departAt) } : {}),
+      ...(form.arriveAt ? { arriveAt: toIso(form.arriveAt) } : {}),
+    };
+    save.mutate(payload);
   }
 
   return (

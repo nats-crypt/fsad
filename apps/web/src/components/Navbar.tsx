@@ -68,7 +68,7 @@ export default function Navbar() {
           >
             Flights
           </NavLink>
-          {user && (
+          {user && !isAdmin && (
             <NavLink
               to="/my-bookings"
               className={({ isActive }) =>
@@ -123,12 +123,12 @@ export default function Navbar() {
                     </p>
                   </div>
                   <Link
-                    to="/my-bookings"
+                    to={isAdmin ? '/admin/bookings' : '/my-bookings'}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-cloud/80 hover:bg-sky-light/30 hover:text-cloud transition-colors"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <Ticket className="w-4 h-4" />
-                    My Bookings
+                    {isAdmin ? 'All Bookings' : 'My Bookings'}
                   </Link>
                   {!isAdmin && (
                     <Link
@@ -202,7 +202,7 @@ export default function Navbar() {
           >
             Flights
           </NavLink>
-          {user && (
+          {user && !isAdmin && (
             <NavLink
               to="/my-bookings"
               className={({ isActive }) =>

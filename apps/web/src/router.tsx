@@ -20,6 +20,8 @@ import Attendance from './pages/admin/Attendance';
 import Duty from './pages/admin/Duty';
 import Optimizer from './pages/admin/Optimizer';
 import Reports from './pages/admin/Reports';
+import BookingsAdmin from './pages/admin/BookingsAdmin';
+import LiveMap from './pages/admin/LiveMap';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -76,9 +78,11 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <AdminDashboard /> },
+      { path: 'live-map', element: <LiveMap /> },
       { path: 'aircraft', element: <AircraftAdmin /> },
       { path: 'employees', element: <EmployeesAdmin /> },
       { path: 'flights', element: <FlightsAdmin /> },
+      { path: 'bookings', element: <BookingsAdmin /> },
       { path: 'crew', element: <CrewAdmin /> },
       { path: 'attendance', element: <Attendance /> },
       { path: 'duty', element: <Duty /> },

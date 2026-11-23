@@ -110,6 +110,40 @@ flightsRouter.get(
   }
 );
 
+/** GET /api/flights/all — admin: list every flight (no search params required) */
+flightsRouter.get(
+  "/all",
+  requireAuth,
+  requireRole("ADMIN", "STAFF"),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const flights = await prisma.flight.findMany({
+        include: { origin: true, destination: true, aircraft: true },
+        orderBy: { departAt: "asc" },
+      });
+
+      res.json(
+        flights.map((f) => ({
+          id: f.id,
+          flightNo: f.flightNo,
+          origin: { code: f.origin.code, city: f.origin.city, name: f.origin.name },
+          destination: { code: f.destination.code, city: f.destination.city, name: f.destination.name },
+          departAt: f.departAt,
+          arriveAt: f.arriveAt,
+          baseFare: Number(f.baseFare),
+          capacity: f.capacity,
+          seatsBooked: f.seatsBooked,
+          seatsLeft: f.capacity - f.seatsBooked,
+          status: f.status,
+          aircraft: { model: f.aircraft.model, registration: f.aircraft.registration },
+        }))
+      );
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /** GET /api/flights/:id — includes seat map */
 flightsRouter.get(
   "/:id",

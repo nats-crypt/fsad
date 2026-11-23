@@ -90,6 +90,10 @@ export default function MyBookings() {
   const { data: bookings, isLoading, isError } = useQuery<Booking[]>({
     queryKey: ['my-bookings'],
     queryFn: () => api.get<Booking[]>('/bookings/mine'),
+    select: (data) => [
+      ...data.filter(b => b.status === 'CONFIRMED'),
+      ...data.filter(b => b.status === 'CANCELLED'),
+    ],
   });
 
   const { data: ticketData } = useQuery<{ ticket: TicketType; pdfUrl?: string }>({

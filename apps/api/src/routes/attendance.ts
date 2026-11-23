@@ -67,6 +67,9 @@ attendanceRouter.get(
           ...(employeeId && typeof employeeId === "string" ? { employeeId } : {}),
           ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
         },
+        include: {
+          employee: { select: { fullName: true, empCode: true } },
+        },
         orderBy: { date: "desc" },
       });
 

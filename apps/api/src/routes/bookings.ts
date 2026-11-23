@@ -291,6 +291,38 @@ bookingsRouter.post(
   }
 );
 
+/** GET /api/bookings/all — admin/staff: all bookings across all passengers */
+bookingsRouter.get(
+  "/all",
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!["ADMIN", "STAFF"].includes(req.user!.role)) {
+        throw new HttpError(403, "Admin or staff access required");
+      }
+
+      const bookings = await prisma.booking.findMany({
+        include: {
+          flight: {
+            include: {
+              origin: { select: { code: true, city: true } },
+              destination: { select: { code: true, city: true } },
+            },
+          },
+          seat: { select: { seatNo: true, cabinClass: true } },
+          payment: { select: { amount: true, status: true, method: true } },
+          passenger: { select: { fullName: true, userId: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      res.json(bookings);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /** GET /api/bookings/mine — list authenticated passenger's bookings */
 bookingsRouter.get(
   "/mine",

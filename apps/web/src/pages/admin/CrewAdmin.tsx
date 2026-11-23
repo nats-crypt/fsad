@@ -18,7 +18,7 @@ export default function CrewAdmin() {
 
   const { data: flights } = useQuery<Flight[]>({
     queryKey: ['admin-flights'],
-    queryFn: () => api.get<Flight[]>('/flights'),
+    queryFn: () => api.get<Flight[]>('/flights/all'),
   });
 
   const { data: employees } = useQuery<Employee[]>({
