@@ -532,6 +532,11 @@ export default function Search() {
                         <Loader2 className="w-5 h-5 text-gold animate-spin" />
                         <span className="text-runway text-sm">Loading return flights…</span>
                       </div>
+                    ) : returnQuery.isError ? (
+                      <div className="card border border-ember/30 p-4 flex items-center gap-3">
+                        <AlertCircle className="w-4 h-4 text-ember flex-shrink-0" />
+                        <p className="text-sm text-ember">Failed to load return flights. Please try again.</p>
+                      </div>
                     ) : returnFiltered.length === 0 ? (
                       <div className="card p-6 text-center"><p className="text-runway text-sm">No return flights found</p></div>
                     ) : (

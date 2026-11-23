@@ -43,15 +43,20 @@ export async function putObject(
 ): Promise<string | null> {
   if (!isS3Configured()) return null;
   const s3 = getS3Client();
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-    })
-  );
-  return key;
+  try {
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      })
+    );
+    return key;
+  } catch (err) {
+    console.error("[storage] putObject failed:", err);
+    return null;
+  }
 }
 
 /**
@@ -64,6 +69,11 @@ export async function presignGet(
 ): Promise<string | null> {
   if (!isS3Configured() || !key) return null;
   const s3 = getS3Client();
-  const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-  return getSignedUrl(s3, cmd, { expiresIn });
+  try {
+    const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    return await getSignedUrl(s3, cmd, { expiresIn });
+  } catch (err) {
+    console.error("[storage] presignGet failed:", err);
+    return null;
+  }
 }

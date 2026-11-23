@@ -45,13 +45,17 @@ export function createApp() {
   });
 
   // Mail test (dev/debug only)
-  app.get("/api/health/mail-test", async (_req: Request, res: Response) => {
+  app.get("/api/health/mail-test", async (_req: Request, res: Response, next: NextFunction) => {
     if (!isMailConfigured()) {
-      return res.json({ ok: false, reason: "GMAIL_USER or GMAIL_APP_PASSWORD not set" });
+      return res.json({ ok: false, reason: "RESEND_API_KEY not set" });
     }
-    const to = process.env.GMAIL_USER!;
-    const sent = await sendMail({ to, subject: "Horizon Airways — Mail Test", html: "<p>Mail is working!</p>" });
-    res.json({ ok: sent, to });
+    try {
+      const to = process.env.RESEND_FROM_EMAIL ?? "test@horizon.air";
+      const sent = await sendMail({ to, subject: "Horizon Airways — Mail Test", html: "<p>Mail is working!</p>" });
+      res.json({ ok: sent, to });
+    } catch (err) {
+      next(err);
+    }
   });
 
   // Mount routers

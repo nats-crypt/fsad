@@ -5,6 +5,14 @@ import { createApp } from "./app.js";
 import { startNotificationScheduler } from "./lib/notifications.js";
 import { fetchAircraftPosition } from "./lib/opensky.js";
 
+// Catch unhandled rejections / exceptions so Railway doesn't restart on transient errors
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+
 const port = process.env.PORT ?? 4000;
 const app = createApp();
 const httpServer = createServer(app);
@@ -19,7 +27,6 @@ wss.on("connection", (ws) => {
     try {
       const msg = JSON.parse(raw.toString()) as { type: string; callsign?: string };
       if (msg.type === "track" && msg.callsign) {
-        // Clear any existing poll for this connection
         if (interval) clearInterval(interval);
 
         const callsign = msg.callsign.trim().toUpperCase();
@@ -29,14 +36,18 @@ wss.on("connection", (ws) => {
             if (interval) clearInterval(interval);
             return;
           }
-          const pos = await fetchAircraftPosition(callsign);
-          if (ws.readyState === ws.OPEN) {
-            ws.send(JSON.stringify({ type: "position", callsign, data: pos }));
+          try {
+            const pos = await fetchAircraftPosition(callsign);
+            if (ws.readyState === ws.OPEN) {
+              ws.send(JSON.stringify({ type: "position", callsign, data: pos }));
+            }
+          } catch (err) {
+            console.error("[ws/track] poll error:", err);
           }
         }
 
-        poll(); // immediate first fetch
-        interval = setInterval(poll, 30_000); // then every 30s
+        poll();
+        interval = setInterval(poll, 30_000);
       } else if (msg.type === "stop") {
         if (interval) { clearInterval(interval); interval = null; }
       }
@@ -47,6 +58,10 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     if (interval) clearInterval(interval);
+  });
+
+  ws.on("error", (err) => {
+    console.error("[ws/track] socket error:", err);
   });
 });
 
