@@ -503,6 +503,7 @@ bookingsRouter.get(
       // Build full ticket payload the frontend ETicket component expects
       const ticket = {
         ...booking.ticket,
+        farePaid: Number(booking.farePaid),
         pnr: booking.pnr,
         flight: {
           flightNo: booking.flight.flightNo,
@@ -510,11 +511,12 @@ bookingsRouter.get(
           destination: booking.flight.destination,
           departAt: booking.flight.departAt,
           arriveAt: booking.flight.arriveAt,
+          status: booking.flight.status,
           aircraft: { model: booking.flight.aircraft?.model ?? "" },
         },
         seat: { seatNo: booking.seat.seatNo, cabinClass: booking.seat.cabinClass },
         passenger: { fullName: booking.passenger.fullName },
-        payment: booking.payment ? { amount: booking.payment.amount, method: booking.payment.method } : null,
+        payment: booking.payment ? { amount: Number(booking.payment.amount), method: booking.payment.method } : null,
       };
 
       res.json({ ticket, pdfUrl });
