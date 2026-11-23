@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plane, Clock, Users, ChevronRight, Wifi, Utensils } from 'lucide-react';
 import type { Flight } from '../types';
 import { formatCurrency, formatTime, formatDate, getDuration } from '../lib/utils';
 import FareBadge from './FareBadge';
+import { useAuth } from '../lib/auth';
 
 interface FlightCardProps {
   flight: Flight;
@@ -12,6 +13,8 @@ interface FlightCardProps {
 
 export default function FlightCard({ flight, pax = 1 }: FlightCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const duration = getDuration(flight.departAt, flight.arriveAt);
   const occupancy = flight.capacity > 0 ? flight.seatsBooked / flight.capacity : 0;
 
@@ -122,14 +125,24 @@ export default function FlightCard({ flight, pax = 1 }: FlightCardProps) {
         </div>
 
         <div className="mt-4 flex justify-end">
-          <Link
-            to={`/book/${flight.id}`}
-            className="btn-primary btn-sm"
-            onClick={e => e.stopPropagation()}
-          >
-            Select Flight
-            <ChevronRight className="w-4 h-4" />
-          </Link>
+          {user ? (
+            <Link
+              to={`/book/${flight.id}`}
+              className="btn-primary btn-sm"
+              onClick={e => e.stopPropagation()}
+            >
+              Select Flight
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          ) : (
+            <button
+              className="btn-primary btn-sm"
+              onClick={e => { e.stopPropagation(); navigate('/login', { state: { from: { pathname: `/book/${flight.id}` } } }); }}
+            >
+              Login to Book
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
