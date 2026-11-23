@@ -25,7 +25,6 @@ interface PassengerData {
   phone: string;
   preferences: {
     meal: string;
-    seatPref: string;
     assistance: string;
   };
 }
@@ -80,7 +79,7 @@ export default function Booking() {
   const [passenger, setPassenger] = useState<PassengerData>({
     fullName: '',
     phone: '',
-    preferences: { meal: '', seatPref: '', assistance: '' },
+    preferences: { meal: '', assistance: '' },
   });
 
   // Load saved profile preferences to pre-fill the passenger step
@@ -98,7 +97,6 @@ export default function Booking() {
       phone: p.phone || profile.phone || '',
       preferences: {
         meal: p.preferences.meal || profile.preferences?.meal || '',
-        seatPref: p.preferences.seatPref || profile.preferences?.seatPref || '',
         assistance: p.preferences.assistance || profile.preferences?.assistance || '',
       },
     }));
@@ -142,7 +140,6 @@ export default function Booking() {
           phone: passenger.phone || undefined,
           preferences: {
             meal: passenger.preferences.meal || undefined,
-            seatPref: passenger.preferences.seatPref || undefined,
             assistance: passenger.preferences.assistance || undefined,
           },
         },
@@ -363,6 +360,38 @@ export default function Booking() {
                 Passenger Details
               </h2>
 
+              {/* Selected seat summary */}
+              {selectedSeatId && (() => {
+                const seat = flight.seats?.find(s => s.id === selectedSeatId);
+                const cabinLabel = seat?.cabinClass === 'FIRST' ? 'First Class' : seat?.cabinClass === 'BUSINESS' ? 'Business' : 'Economy';
+                const badgeClass = seat?.cabinClass === 'FIRST' ? 'badge-gold' : seat?.cabinClass === 'BUSINESS' ? 'badge-blue' : 'badge-gray';
+                return (
+                  <div className="flex items-center gap-4 bg-sky-mid/40 border border-gold/20 rounded-xl p-4 mb-5">
+                    <div className="w-12 h-12 rounded-xl bg-gold/10 border border-gold/30 flex items-center justify-center">
+                      <span className="font-heading text-lg font-bold text-gold">{selectedSeatNo}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-runway uppercase tracking-wider font-heading">Your Seat</p>
+                      <p className="font-heading text-cloud font-semibold">Seat {selectedSeatNo}</p>
+                      <span className={`badge text-xs mt-0.5 ${badgeClass}`}>{cabinLabel}</span>
+                    </div>
+                    {seat?.fare && (
+                      <div className="text-right">
+                        <p className="font-heading text-xl font-bold text-gold">₹{seat.fare.toLocaleString()}</p>
+                        <p className="text-xs text-runway">seat fare</p>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-ghost text-xs px-2 py-1"
+                      onClick={() => setStep('seat')}
+                    >
+                      Change
+                    </button>
+                  </div>
+                );
+              })()}
+
               <form
                 onSubmit={e => {
                   e.preventDefault();
@@ -407,7 +436,7 @@ export default function Booking() {
                   Preferences (Optional)
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="label">Meal</label>
                     <select
@@ -427,25 +456,6 @@ export default function Booking() {
                       <option value="KOSHER">Kosher</option>
                       <option value="HALAL">Halal</option>
                       <option value="DIABETIC">Diabetic</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Seat Preference</label>
-                    <select
-                      className="input"
-                      value={passenger.preferences.seatPref}
-                      onChange={e =>
-                        setPassenger(p => ({
-                          ...p,
-                          preferences: { ...p.preferences, seatPref: e.target.value },
-                        }))
-                      }
-                    >
-                      <option value="">No preference</option>
-                      <option value="WINDOW">Window</option>
-                      <option value="AISLE">Aisle</option>
-                      <option value="FRONT">Front of cabin</option>
-                      <option value="EXIT_ROW">Exit row</option>
                     </select>
                   </div>
                   <div>
