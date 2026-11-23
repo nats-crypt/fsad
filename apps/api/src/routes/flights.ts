@@ -29,11 +29,15 @@ flightsRouter.get(
       const dayStart = new Date(`${date}T00:00:00.000+05:30`);
       const dayEnd = new Date(`${date}T23:59:59.999+05:30`);
 
+      const now = new Date();
+      // For today's search, hide flights that have already departed
+      const departFrom = dayStart <= now ? now : dayStart;
+
       const flights = await prisma.flight.findMany({
         where: {
           ...(origin ? { origin: { code: origin } } : {}),
           ...(destination ? { destination: { code: destination } } : {}),
-          departAt: { gte: dayStart, lte: dayEnd },
+          departAt: { gte: departFrom, lte: dayEnd },
           status: { not: "CANCELLED" },
         },
         include: {
