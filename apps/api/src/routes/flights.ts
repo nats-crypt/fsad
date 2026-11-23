@@ -30,13 +30,17 @@ flightsRouter.get(
       const dayEnd = new Date(`${date}T23:59:59.999+05:30`);
 
       const now = new Date();
-      // Reject searches for past dates — the whole day has already ended
-      if (dayEnd < now && dayStart.toDateString() !== now.toDateString()) {
+      // Today's date in IST (YYYY-MM-DD) — compare date strings, not JS Date objects,
+      // to avoid UTC/IST offset confusion (IST is UTC+5:30)
+      const todayIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      if (date < todayIST) {
         res.json([]);
         return;
       }
       // For today's search, only show flights that haven't departed yet
-      const departFrom = dayStart <= now ? now : dayStart;
+      const departFrom = date === todayIST ? now : dayStart;
 
       const flights = await prisma.flight.findMany({
         where: {
