@@ -51,18 +51,51 @@ type RouteSpec = {
 };
 
 const ROUTES: RouteSpec[] = [
+  // DEL ↔ BOM
   { flightNoBase: "HA101", origin: "DEL", dest: "BOM", departHour:  6, durationMin: 120, baseFare: 4500, aircraftIdx: 0 },
   { flightNoBase: "HA102", origin: "BOM", dest: "DEL", departHour: 10, durationMin: 120, baseFare: 4500, aircraftIdx: 1 },
+  // DEL ↔ BLR
   { flightNoBase: "HA201", origin: "DEL", dest: "BLR", departHour:  7, durationMin: 165, baseFare: 5200, aircraftIdx: 2 },
   { flightNoBase: "HA202", origin: "BLR", dest: "DEL", departHour: 14, durationMin: 165, baseFare: 5200, aircraftIdx: 3 },
+  // DEL ↔ MAA
   { flightNoBase: "HA301", origin: "DEL", dest: "MAA", departHour:  8, durationMin: 175, baseFare: 5500, aircraftIdx: 4 },
   { flightNoBase: "HA302", origin: "MAA", dest: "DEL", departHour: 15, durationMin: 175, baseFare: 5500, aircraftIdx: 4 },
-  { flightNoBase: "HA401", origin: "BOM", dest: "BLR", departHour:  9, durationMin:  85, baseFare: 3200, aircraftIdx: 2 },
-  { flightNoBase: "HA402", origin: "BLR", dest: "BOM", departHour: 12, durationMin:  85, baseFare: 3200, aircraftIdx: 3 },
+  // DEL ↔ HYD
+  { flightNoBase: "HA303", origin: "DEL", dest: "HYD", departHour:  9, durationMin: 155, baseFare: 5000, aircraftIdx: 2 },
+  { flightNoBase: "HA304", origin: "HYD", dest: "DEL", departHour: 16, durationMin: 155, baseFare: 5000, aircraftIdx: 3 },
+  // DEL ↔ CCU
   { flightNoBase: "HA501", origin: "DEL", dest: "CCU", departHour:  7, durationMin: 135, baseFare: 4800, aircraftIdx: 0 },
   { flightNoBase: "HA502", origin: "CCU", dest: "DEL", departHour: 13, durationMin: 135, baseFare: 4800, aircraftIdx: 1 },
+  // BOM ↔ BLR
+  { flightNoBase: "HA401", origin: "BOM", dest: "BLR", departHour:  9, durationMin:  85, baseFare: 3200, aircraftIdx: 2 },
+  { flightNoBase: "HA402", origin: "BLR", dest: "BOM", departHour: 12, durationMin:  85, baseFare: 3200, aircraftIdx: 3 },
+  // BOM ↔ HYD
   { flightNoBase: "HA601", origin: "BOM", dest: "HYD", departHour: 11, durationMin:  80, baseFare: 3000, aircraftIdx: 5 },
   { flightNoBase: "HA602", origin: "HYD", dest: "BOM", departHour: 14, durationMin:  80, baseFare: 3000, aircraftIdx: 5 },
+  // BOM ↔ MAA
+  { flightNoBase: "HA701", origin: "BOM", dest: "MAA", departHour: 10, durationMin: 110, baseFare: 3800, aircraftIdx: 0 },
+  { flightNoBase: "HA702", origin: "MAA", dest: "BOM", departHour: 15, durationMin: 110, baseFare: 3800, aircraftIdx: 1 },
+  // BOM ↔ CCU
+  { flightNoBase: "HA703", origin: "BOM", dest: "CCU", departHour:  8, durationMin: 155, baseFare: 5100, aircraftIdx: 4 },
+  { flightNoBase: "HA704", origin: "CCU", dest: "BOM", departHour: 14, durationMin: 155, baseFare: 5100, aircraftIdx: 4 },
+  // BLR ↔ HYD
+  { flightNoBase: "HA801", origin: "BLR", dest: "HYD", departHour: 11, durationMin:  60, baseFare: 2500, aircraftIdx: 5 },
+  { flightNoBase: "HA802", origin: "HYD", dest: "BLR", departHour: 13, durationMin:  60, baseFare: 2500, aircraftIdx: 5 },
+  // BLR ↔ MAA
+  { flightNoBase: "HA803", origin: "BLR", dest: "MAA", departHour:  7, durationMin:  65, baseFare: 2600, aircraftIdx: 5 },
+  { flightNoBase: "HA804", origin: "MAA", dest: "BLR", departHour: 10, durationMin:  65, baseFare: 2600, aircraftIdx: 5 },
+  // BLR ↔ CCU
+  { flightNoBase: "HA805", origin: "BLR", dest: "CCU", departHour:  9, durationMin: 190, baseFare: 5800, aircraftIdx: 2 },
+  { flightNoBase: "HA806", origin: "CCU", dest: "BLR", departHour: 16, durationMin: 190, baseFare: 5800, aircraftIdx: 3 },
+  // HYD ↔ MAA
+  { flightNoBase: "HA901", origin: "HYD", dest: "MAA", departHour:  8, durationMin:  70, baseFare: 2800, aircraftIdx: 5 },
+  { flightNoBase: "HA902", origin: "MAA", dest: "HYD", departHour: 11, durationMin:  70, baseFare: 2800, aircraftIdx: 5 },
+  // HYD ↔ CCU
+  { flightNoBase: "HA903", origin: "HYD", dest: "CCU", departHour: 10, durationMin: 170, baseFare: 5300, aircraftIdx: 0 },
+  { flightNoBase: "HA904", origin: "CCU", dest: "HYD", departHour: 15, durationMin: 170, baseFare: 5300, aircraftIdx: 1 },
+  // MAA ↔ CCU
+  { flightNoBase: "HA905", origin: "MAA", dest: "CCU", departHour:  9, durationMin: 150, baseFare: 4900, aircraftIdx: 4 },
+  { flightNoBase: "HA906", origin: "CCU", dest: "MAA", departHour: 14, durationMin: 150, baseFare: 4900, aircraftIdx: 4 },
 ];
 
 // ── 4. Employees ──────────────────────────────────────────────────────────────
@@ -187,20 +220,13 @@ async function main() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Days 1-7 and 8-14 → each route runs twice (once per week)
-  const dayOffsets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
-  // Assign routes to days: stagger so each route runs on 2 different days
+  // Every route runs every day for the next 14 days
   const flightSchedule: Array<{ route: RouteSpec; dayOffset: number }> = [];
   for (const route of ROUTES) {
-    // Each route gets 2 occurrences ~7 days apart
-    const baseDay = (ROUTES.indexOf(route) % 7) + 1;
-    flightSchedule.push({ route, dayOffset: baseDay });
-    flightSchedule.push({ route, dayOffset: baseDay + 7 });
+    for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
+      flightSchedule.push({ route, dayOffset });
+    }
   }
-
-  let flightCount = 0;
-  let seatCount = 0;
-  let crewCount = 0;
 
   // Collect employees for crew rotation
   const allEmployees = await prisma.employee.findMany();
@@ -208,78 +234,89 @@ async function main() {
   const coPilots = allEmployees.filter((e) => e.designation === "Co-Pilot");
   const cabinCrew = allEmployees.filter((e) => e.designation === "Cabin Crew");
 
+  // Build all desired flights in memory
+  type FlightSpec = {
+    flightNo: string; originId: string; destinationId: string; aircraftId: string;
+    departAt: Date; arriveAt: Date; baseFare: number; capacity: number;
+    aircraftIdx: number; dayOffset: number;
+  };
+  const desired: FlightSpec[] = [];
   for (const { route, dayOffset } of flightSchedule) {
     const originAp = airportByCode[route.origin];
     const destAp = airportByCode[route.dest];
-    if (!originAp || !destAp) continue;
-
     const ac = aircraftList[route.aircraftIdx % aircraftList.length];
-    if (!ac) continue;
-
+    if (!originAp || !destAp || !ac) continue;
     const departAt = new Date(today);
     departAt.setDate(today.getDate() + dayOffset);
     departAt.setHours(route.departHour, 0, 0, 0);
-
     const arriveAt = new Date(departAt.getTime() + route.durationMin * 60 * 1000);
-
-    // Build a deterministic flight number per day
     const dateStr = departAt.toISOString().slice(0, 10).replace(/-/g, "");
-    const flightNo = `${route.flightNoBase}-${dateStr}`;
+    desired.push({
+      flightNo: `${route.flightNoBase}-${dateStr}`,
+      originId: originAp.id, destinationId: destAp.id, aircraftId: ac.id,
+      departAt, arriveAt, baseFare: route.baseFare, capacity: ac.capacity,
+      aircraftIdx: route.aircraftIdx, dayOffset,
+    });
+  }
 
-    // Idempotency: skip if this exact flight already exists
-    const existing = await prisma.flight.findFirst({ where: { flightNo } });
+  // Fetch all existing flight numbers in one query
+  const existingFlightNos = new Set(
+    (await prisma.flight.findMany({ select: { flightNo: true } })).map((f) => f.flightNo)
+  );
 
-    let flightId: string;
-    if (existing) {
-      flightId = existing.id;
-    } else {
-      const created = await prisma.flight.create({
-        data: {
-          flightNo,
-          originId: originAp.id,
-          destinationId: destAp.id,
-          aircraftId: ac.id,
-          departAt,
-          arriveAt,
-          baseFare: route.baseFare,
-          capacity: ac.capacity,
-          status: "SCHEDULED",
-        },
-      });
-      flightId = created.id;
-      flightCount++;
-    }
+  // Batch-create new flights
+  const newFlights = desired.filter((f) => !existingFlightNos.has(f.flightNo));
+  if (newFlights.length > 0) {
+    await prisma.flight.createMany({
+      data: newFlights.map(({ flightNo, originId, destinationId, aircraftId, departAt, arriveAt, baseFare, capacity }) => ({
+        flightNo, originId, destinationId, aircraftId, departAt, arriveAt, baseFare, capacity, status: "SCHEDULED",
+      })),
+      skipDuplicates: true,
+    });
+  }
+  const flightCount = newFlights.length;
 
-    // Seats — upsert on [flightId, seatNo]
-    const seatNos = generateSeatNos(ac.capacity);
-    for (const { seatNo, cabinClass } of seatNos) {
-      const existingSeat = await prisma.seat.findUnique({
-        where: { flightId_seatNo: { flightId, seatNo } },
-      });
-      if (!existingSeat) {
-        await prisma.seat.create({ data: { flightId, seatNo, cabinClass, status: "AVAILABLE" } });
-        seatCount++;
-      }
-    }
+  // Fetch all flights (new + existing) to get their IDs
+  const allFlights = await prisma.flight.findMany({ select: { id: true, flightNo: true, capacity: true } });
+  const flightByNo = Object.fromEntries(allFlights.map((f) => [f.flightNo, f]));
 
-    // Crew — assign pilot, co-pilot, 2 cabin crew (upsert on unique[flightId, employeeId])
-    const crewToAssign = [
-      { emp: pilots[dayOffset % pilots.length],    role: "PILOT" },
-      { emp: coPilots[dayOffset % coPilots.length], role: "CO_PILOT" },
-      { emp: cabinCrew[dayOffset % cabinCrew.length],       role: "CABIN_CREW" },
-      { emp: cabinCrew[(dayOffset + 1) % cabinCrew.length], role: "CABIN_CREW" },
-    ];
-
-    for (const { emp, role } of crewToAssign) {
-      if (!emp) continue;
-      await prisma.crewAssignment.upsert({
-        where: { flightId_employeeId: { flightId, employeeId: emp.id } },
-        update: {},
-        create: { flightId, employeeId: emp.id, role },
-      });
-      crewCount++;
+  // Batch-create seats for all flights that have none
+  const flightsWithSeats = new Set(
+    (await prisma.seat.findMany({ select: { flightId: true }, distinct: ["flightId"] })).map((s) => s.flightId)
+  );
+  let seatCount = 0;
+  const allSeats: Array<{ flightId: string; seatNo: string; cabinClass: string; status: "AVAILABLE" }> = [];
+  for (const spec of desired) {
+    const flight = flightByNo[spec.flightNo];
+    if (!flight || flightsWithSeats.has(flight.id)) continue;
+    for (const { seatNo, cabinClass } of generateSeatNos(flight.capacity)) {
+      allSeats.push({ flightId: flight.id, seatNo, cabinClass, status: "AVAILABLE" });
     }
   }
+  // Insert seats in chunks of 1000
+  for (let i = 0; i < allSeats.length; i += 1000) {
+    const chunk = allSeats.slice(i, i + 1000);
+    const r = await prisma.seat.createMany({ data: chunk, skipDuplicates: true });
+    seatCount += r.count;
+  }
+
+  // Batch-create crew assignments
+  const allCrew: Array<{ flightId: string; employeeId: string; role: string }> = [];
+  for (const spec of desired) {
+    const flight = flightByNo[spec.flightNo];
+    if (!flight) continue;
+    const crew = [
+      { emp: pilots[spec.dayOffset % pilots.length], role: "PILOT" },
+      { emp: coPilots[spec.dayOffset % coPilots.length], role: "CO_PILOT" },
+      { emp: cabinCrew[spec.dayOffset % cabinCrew.length], role: "CABIN_CREW" },
+      { emp: cabinCrew[(spec.dayOffset + 1) % cabinCrew.length], role: "CABIN_CREW" },
+    ];
+    for (const { emp, role } of crew) {
+      if (emp) allCrew.push({ flightId: flight.id, employeeId: emp.id, role });
+    }
+  }
+  const crewResult = await prisma.crewAssignment.createMany({ data: allCrew, skipDuplicates: true });
+  const crewCount = crewResult.count;
 
   // ── Final counts ──────────────────────────────────────────────────────────
   const counts = {

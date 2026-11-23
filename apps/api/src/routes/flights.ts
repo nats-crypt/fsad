@@ -25,9 +25,9 @@ flightsRouter.get(
       }
       const { origin, destination, date } = parsed.data;
 
-      // Whole-day range in UTC
-      const dayStart = new Date(`${date}T00:00:00.000Z`);
-      const dayEnd = new Date(`${date}T23:59:59.999Z`);
+      // Whole-day range in IST (UTC+5:30) — seed data is stored in local IST time
+      const dayStart = new Date(`${date}T00:00:00.000+05:30`);
+      const dayEnd = new Date(`${date}T23:59:59.999+05:30`);
 
       const flights = await prisma.flight.findMany({
         where: {
